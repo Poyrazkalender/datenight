@@ -3,9 +3,23 @@ import { WIDTH, HEIGHT } from '../game/constants';
 import { createState, update, updateRemotePlayer } from '../game/engineRestart';
 import { render } from '../game/renderer';
 import TouchControls from './TouchControls';
-import { useChannel } from 'ably/react'; // 🆕 Ably hook'u
+// 🆕 ChannelProvider eklendi
+import { useChannel, ChannelProvider } from 'ably/react'; 
 
-export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId }) {
+export default function GameCanvas(props) {
+  // Eğer oda seçilmediyse lobi kanalını kullan
+  const channelName = props.roomId ? `game-room-${props.roomId}` : 'lobby-offline';
+
+  // Dış bileşen sadece ChannelProvider'ı sağlar
+  return (
+    <ChannelProvider channelName={channelName}>
+      <GameCanvasInner {...props} channelName={channelName} />
+    </ChannelProvider>
+  );
+}
+
+// İç bileşen asıl oyun mantığını barındırır
+function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, channelName }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
@@ -15,17 +29,12 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
 
-  // 🆕 Ably Kanal Adı (Eğer oda seçilmediyse lobi kanalını kullan, böylece hata vermez)
-  const channelName = roomId ? `game-room-${roomId}` : 'lobby-offline';
-
-  // 🆕 Diğer oyuncudan gelen mesajları dinle
+  // 🆕 Diğer oyuncudan gelen mesajları dinle (Artık ChannelProvider sayesinde sorunsuz çalışacak)
   const { publish } = useChannel(channelName, (message) => {
-    // Eğer editördeysek veya oyun state'i yoksa mesajları işleme
     if (isEditing || !stateRef.current) return;
 
     if (message.name === 'player-state') {
       const myPlayer = stateRef.current.players[0];
-      // Sadece diğer oyuncudan gelen mesajları al (kendi mesajımızı yoksay)
       if (message.data.color !== myPlayer.color) {
         updateRemotePlayer(stateRef.current, message.data);
       }
@@ -40,10 +49,9 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     }
   });
 
-  // State oluştururken karakterleri ve seviyeyi yükle
   useEffect(() => {
     stateRef.current = createState(levelData, characters);
-    hasPublishedComplete.current = false; // Yeni seviyede bayrağı sıfırla
+    hasPublishedComplete.current = false;
   }, [levelData, characters]);
 
   useEffect(() => {
@@ -76,12 +84,11 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
           stateRef.current = createState(levelData, characters);
           hasPublishedComplete.current = false;
           
-          // Diğer oyuncuya da restart olduğunu bildir
-          if (publish) publish('game-event', { type: 'restart' });
+          if (publish && roomId) publish('game-event', { type: 'restart' });
         } else {
           update(state, keysRef.current, dt);
 
-          // 🆕 ABLY: Kendi pozisyonumuzu yayınla (Saniyede 20 kez / 50ms'de bir)
+          // 🆕 ABLY: Kendi pozisyonumuzu yayınla
           if (publish && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
             publish('player-state', {
@@ -96,7 +103,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
             lastPublishedTime.current = time;
           }
 
-          // 🆕 ABLY: Seviye tamamlandıysa diğer oyuncuya bildir (Sadece 1 kez yayınla)
+          // 🆕 ABLY: Seviye tamamlandıysa diğer oyuncuya bildir
           if (publish && roomId && state.levelComplete && !hasPublishedComplete.current) {
             publish('game-event', { type: 'level-complete' });
             hasPublishedComplete.current = true;
@@ -202,7 +209,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     setDrawCurrent(null);
   };
 
-  // 🆕 Mobil Tuş Kontrolcüsü
   const handleTouchKey = (key, isPressed) => {
     keysRef.current[key] = isPressed;
   };
