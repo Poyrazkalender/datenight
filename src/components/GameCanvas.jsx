@@ -11,8 +11,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
   const keysRef = useRef({});
   const lastPublishedTime = useRef(0);
   const hasPublishedComplete = useRef(false);
-  
-  // 🆕 Restart döngüsünü kırmak için yeni ref
   const hasPublishedRestart = useRef(false); 
 
   const roomRef = useRef(null);
@@ -22,14 +20,12 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
 
-  // State Başlat
   useEffect(() => {
     stateRef.current = createState(levelData, characters);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
   }, [levelData, characters]);
 
-  // Trystero Oda Bağlantısı
   useEffect(() => {
     if (!roomId || isEditing) return;
 
@@ -56,8 +52,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       if (data.type === 'level-complete') {
         stateRef.current.levelComplete = true;
       } else if (data.type === 'restart') {
-        // 🆕 Sadece karşı taraf restart istediyse kendi ekranımızı karart
-        // ve tekrar sinyal göndermesini engelle
+        // Karşı taraftan restart sinyali geldiğinde uygula
         if (!stateRef.current.restartRequested) {
           stateRef.current.restartRequested = true;
           stateRef.current.restartTime = stateRef.current.time;
@@ -73,7 +68,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     };
   }, [roomId, isEditing]);
 
-  // Oyun Döngüsü
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -99,7 +93,10 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       const state = stateRef.current;
 
       if (!isEditing) {
-        // 🚨 DÜZELTİLMİŞ RESTART MANTIĞI
+        // 🆕 DÜZELTME: update() her zaman çağrılmalı ki state.time artsın.
+        // update() içinde restartRequested kontrolü olduğu için fizik durur ama zaman işler.
+        update(state, keysRef.current, dt);
+
         if (state.restartRequested) {
           // Sinyali sadece 1 kez gönder
           if (!hasPublishedRestart.current) {
@@ -113,11 +110,9 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
           if (state.time - state.restartTime > 0.6) {
             stateRef.current = createState(levelData, characters);
             hasPublishedComplete.current = false;
-            hasPublishedRestart.current = false; // Bir sonraki düşüş için sıfırla
+            hasPublishedRestart.current = false; 
           }
         } else {
-          update(state, keysRef.current, dt);
-
           // Pozisyon yayınla
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
@@ -174,7 +169,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     };
   }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId]);
 
-  // Editör Fare Kontrolleri
   const getGridCoords = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
