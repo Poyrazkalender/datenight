@@ -7,8 +7,6 @@ export default function App() {
   const [screen, setScreen] = useState('menu');
   const [isMobile, setIsMobile] = useState(false);
   const [characters, setCharacters] = useState({ p1: 'platformBlue', p2: 'platformPink' });
-  
-  // 🆕 Oda Kodu State'i
   const [roomId, setRoomId] = useState('');
 
   const [isEditing, setIsEditing] = useState(false);
@@ -27,7 +25,6 @@ export default function App() {
 
   const startGame = (mobileMode) => {
     setIsMobile(mobileMode);
-    // Eğer kullanıcı oda kodu girmediyse rastgele 4 haneli bir kod oluştur
     if (!roomId.trim()) {
       const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
       setRoomId(randomCode);
@@ -35,13 +32,11 @@ export default function App() {
     setScreen('game');
   };
 
-  // 🆕 Menü Ekranı
   if (screen === 'menu') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff' }}>
         <h1 style={{ fontSize: 48, color: '#e84393', textShadow: '0 0 20px #e84393', marginBottom: 20 }}>LOVE GAME</h1>
         
-        {/* Oda Kodu Girişi */}
         <div style={{ marginBottom: 30, textAlign: 'center' }}>
           <input 
             type="text" 
@@ -53,52 +48,44 @@ export default function App() {
           <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Arkadaşınla aynı kodu girerek aynı odada buluşun.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: 20, marginBottom: 40 }}>
-          <button 
-            onClick={() => startGame(false)}
-            style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            💻 Bilgisayar
-          </button>
-          <button 
-            onClick={() => startGame(true)}
-            style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            📱 Mobil / Tablet
-          </button>
-        </div>
-
-        <div style={{ padding: 20, background: '#1a1a2e', borderRadius: 8, border: '1px solid #333' }}>
-          <h3 style={{ marginTop: 0, marginBottom: 15 }}>Karakter Seçimi</h3>
+        <div style={{ padding: 20, background: '#1a1a2e', borderRadius: 8, border: '1px solid #333', marginBottom: 30 }}>
+          <h3 style={{ marginTop: 0, marginBottom: 15 }}>Karakterini Seç (Online)</h3>
           <div style={{ display: 'flex', gap: 10 }}>
             <button 
               onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })}
-              style={{ padding: '10px 20px', background: characters.p1 === 'platformBlue' ? '#27ae60' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+              style={{ padding: '15px 30px', background: characters.p1 === 'platformBlue' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}
             >
-              Sabit (Mavi & Pembe)
+              Mavi (P1)
             </button>
             <button 
-              onClick={() => {
-                const isRandom = Math.random() > 0.5;
-                setCharacters(isRandom ? { p1: 'platformPink', p2: 'platformBlue' } : { p1: 'platformBlue', p2: 'platformPink' });
-              }}
-              style={{ padding: '10px 20px', background: '#8e44ad', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+              onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })}
+              style={{ padding: '15px 30px', background: characters.p1 === 'platformPink' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}
             >
-              🎲 Rastgele
+              Pembe (P2)
             </button>
           </div>
+          <p style={{ fontSize: 12, color: '#888', marginTop: 15, maxWidth: 250 }}>
+            *Online oynarken birbirinizle aynı rengi SEÇMEYİN.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 20 }}>
+          <button onClick={() => startGame(false)} style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+            💻 Bilgisayar
+          </button>
+          <button onClick={() => startGame(true)} style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+            📱 Mobil / Tablet
+          </button>
         </div>
       </div>
     );
   }
 
-  // Oyun Ekranı
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
         <h1 style={{ margin: 0, letterSpacing: 2, color: '#e84393', textShadow: '0 0 10px #e84393' }}>LOVE GAME</h1>
         
-        {/* 🆕 Aktif Oda Kodu */}
         <div style={{ padding: '8px 15px', background: '#1a1a2e', borderRadius: 4, border: '1px solid #3498db', color: '#3498db', fontWeight: 'bold' }}>
           Oda: {roomId}
         </div>
@@ -130,7 +117,7 @@ export default function App() {
           onLevelChange={setLevelData} 
           isMobile={isMobile} 
           characters={characters} 
-          roomId={roomId} // 🆕 Oda kodu GameCanvas'a aktarılıyor
+          roomId={roomId} 
         />
         
         {isEditing && (
@@ -139,7 +126,7 @@ export default function App() {
       </div>
 
       <div style={{ marginTop: 15, color: '#888' }}>
-        {isEditing ? 'Fareyle tıkla ve sürükle -> Platform çiz.' : 'Mavi: A / D / W  |  Pembe: ← / → / ↑'}
+        {isEditing ? 'Fareyle tıkla ve sürükle -> Platform çiz.' : 'Kendi karakterini hareket ettir. (PC: A / D / W)'}
       </div>
     </div>
   );

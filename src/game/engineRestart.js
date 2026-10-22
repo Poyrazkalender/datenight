@@ -1,7 +1,6 @@
 import { GRAVITY, WIDTH, HEIGHT } from './constants';
 import { LEVELS } from './levels';
 
-// 🆕 characters parametresi eklendi
 export function createState(levelData = LEVELS[0], characters = { p1: 'platformBlue', p2: 'platformPink' }) {
   return {
     time: 0,
@@ -14,30 +13,33 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
     pinkSpawn: { ...levelData.pinkSpawn },
     players: [
       { 
-        color: characters.p1, // Dışarıdan gelen renk
-        x: levelData.blueSpawn.x, y: levelData.blueSpawn.y, w: 50, h: 50, vx: 0, vy: 0, 
+        color: characters.p1, 
+        // Renk mavi ise mavi noktada, pembe ise pembe noktada doğ
+        x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, 
+        y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, 
+        w: 24, h: 24, vx: 0, vy: 0, 
         speed: 260, jumpSpeed: 720, grounded: false, facing: 1,
+        // P1 Kontrolleri (Klavye / Joystick)
         controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1 
       },
       { 
-        color: characters.p2, // Dışarıdan gelen renk
-        x: levelData.pinkSpawn.x, y: levelData.pinkSpawn.y, w: 50, h: 50, vx: 0, vy: 0, 
+        color: characters.p2, 
+        x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, 
+        y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, 
+        w: 24, h: 24, vx: 0, vy: 0, 
         speed: 260, jumpSpeed: 720, grounded: false, facing: 1,
-        controls: { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp' }, landedAt: -1 
+        // 🆕 P2 Kontrolleri Kapatıldı (Sadece ağdan gelen sinyalleri alacak)
+        controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1 
       }
     ],
   };
 }
 
-// ... (mevcut import'lar ve createState fonksiyonu aynı kalacak)
-
-// 🆕 Diğer oyuncunun pozisyonunu güncellemek için fonksiyon
 export function updateRemotePlayer(state, remoteData) {
   const remotePlayer = state.players.find(p => p.color === remoteData.color);
   if (remotePlayer) {
-    // Gelen pozisyonu doğrudan ata (daha yumuşak geçiş için lerp kullanılabilir)
-    remotePlayer.x = remoteData.x;
-    remotePlayer.y = remoteData.y;
+    remotePlayer.x += (remoteData.x - remotePlayer.x) * 0.3;
+    remotePlayer.y += (remoteData.y - remotePlayer.y) * 0.3;
     remotePlayer.vx = remoteData.vx;
     remotePlayer.vy = remoteData.vy;
     remotePlayer.facing = remoteData.facing;
@@ -45,14 +47,13 @@ export function updateRemotePlayer(state, remoteData) {
   }
 }
 
-// ... (mevcut update fonksiyonu aynı kalacak)
-
 export function update(state, keys, dt) {
   state.time += dt;
   if (state.levelComplete || state.restartRequested) return;
 
   for (const p of state.players) {
     let moveX = 0;
+    // Eğer kontrol 'None' ise hata vermez, sadece çalışmaz (falsy değer)
     if (keys[p.controls.left]) moveX -= 1;
     if (keys[p.controls.right]) moveX += 1;
 
