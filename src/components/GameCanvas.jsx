@@ -30,7 +30,10 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
   const [drawCurrent, setDrawCurrent] = useState(null);
 
   // 🆕 Diğer oyuncudan gelen mesajları dinle (Artık ChannelProvider sayesinde sorunsuz çalışacak)
-  const { publish } = useChannel(channelName, (message) => {
+    const { publish } = useChannel(channelName, (message) => {
+    // 🆕 Gelen mesajları konsola yazdır
+    console.log('📩 Mesaj Geldi:', message.name, message.data);
+
     if (isEditing || !stateRef.current) return;
 
     if (message.name === 'player-state') {
@@ -39,14 +42,7 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
         updateRemotePlayer(stateRef.current, message.data);
       }
     } 
-    else if (message.name === 'game-event') {
-      if (message.data.type === 'level-complete') {
-        stateRef.current.levelComplete = true;
-      } else if (message.data.type === 'restart') {
-        stateRef.current.restartRequested = true;
-        stateRef.current.restartTime = stateRef.current.time;
-      }
-    }
+    // ... geri kalan kodlar aynı
   });
 
   useEffect(() => {
@@ -84,13 +80,11 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
           stateRef.current = createState(levelData, characters);
           hasPublishedComplete.current = false;
           
-          if (publish && roomId) publish('game-event', { type: 'restart' });
-        } else {
-          update(state, keysRef.current, dt);
-
-          // 🆕 ABLY: Kendi pozisyonumuzu yayınla
+                  // 🆕 ABLY: Kendi pozisyonumuzu yayınla
           if (publish && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
+            console.log('📤 Yayınlanıyor:', myPlayer.color, myPlayer.x.toFixed(1), myPlayer.y.toFixed(1)); // 🆕 Log eklendi
+            
             publish('player-state', {
               color: myPlayer.color,
               x: myPlayer.x,
