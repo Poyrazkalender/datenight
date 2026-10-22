@@ -118,6 +118,8 @@ export default function App() {
           isMobile={isMobile} 
           characters={characters} 
           roomId={roomId} 
+          currentLevelIndex={currentLevelIndex}
+          setCurrentLevelIndex={setCurrentLevelIndex}
         />
         
         {isEditing && (

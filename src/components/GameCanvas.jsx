@@ -5,27 +5,32 @@ import { render } from '../game/renderer';
 import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
 
-export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId }) {
+export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
   const lastPublishedTime = useRef(0);
   const hasPublishedComplete = useRef(false);
   const hasPublishedRestart = useRef(false); 
+  const isRemoteLevelChange = useRef(false); // Karşıdan mı geldi kontrolü
 
   const roomRef = useRef(null);
   const playerStateActionRef = useRef(null);
   const gameEventActionRef = useRef(null);
+  const levelActionRef = useRef(null); // 🆕 Seviye senkronizasyonu için
 
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
 
+  // State Başlat (Seviye değiştiğinde tuşları da sıfırla)
   useEffect(() => {
     stateRef.current = createState(levelData, characters);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
+    keysRef.current = {}; 
   }, [levelData, characters]);
 
+  // Trystero Oda Bağlantısı
   useEffect(() => {
     if (!roomId || isEditing) return;
 
@@ -35,9 +40,11 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
 
     const playerStateAction = room.makeAction('player-state');
     const gameEventAction = room.makeAction('game-event');
+    const levelAction = room.makeAction('change-level'); // 🆕 Seviye değişim ağı
 
     playerStateActionRef.current = playerStateAction;
     gameEventActionRef.current = gameEventAction;
+    levelActionRef.current = levelAction;
 
     playerStateAction.onMessage = (data) => {
       if (!stateRef.current) return;
@@ -52,11 +59,17 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       if (data.type === 'level-complete') {
         stateRef.current.levelComplete = true;
       } else if (data.type === 'restart') {
-        // Karşı taraftan restart sinyali geldiğinde uygula
         if (!stateRef.current.restartRequested) {
           stateRef.current.restartRequested = true;
           stateRef.current.restartTime = stateRef.current.time;
         }
+      }
+    };
+
+    levelAction.onMessage = (index) => {
+      if (setCurrentLevelIndex) {
+        isRemoteLevelChange.current = true;
+        setCurrentLevelIndex(index);
       }
     };
 
@@ -65,9 +78,22 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       roomRef.current = null;
       playerStateActionRef.current = null;
       gameEventActionRef.current = null;
+      levelActionRef.current = null;
     };
-  }, [roomId, isEditing]);
+  }, [roomId, isEditing, setCurrentLevelIndex]);
 
+  // 🆕 Seviye değişimini ağa gönder
+  useEffect(() => {
+    if (isRemoteLevelChange.current) {
+      isRemoteLevelChange.current = false;
+      return;
+    }
+    if (levelActionRef.current && roomId && !isEditing) {
+      levelActionRef.current.send(currentLevelIndex);
+    }
+  }, [currentLevelIndex, roomId, isEditing]);
+
+  // Oyun Döngüsü
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -93,12 +119,9 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       const state = stateRef.current;
 
       if (!isEditing) {
-        // 🆕 DÜZELTME: update() her zaman çağrılmalı ki state.time artsın.
-        // update() içinde restartRequested kontrolü olduğu için fizik durur ama zaman işler.
         update(state, keysRef.current, dt);
 
         if (state.restartRequested) {
-          // Sinyali sadece 1 kez gönder
           if (!hasPublishedRestart.current) {
             hasPublishedRestart.current = true;
             if (gameEventActionRef.current) {
@@ -106,14 +129,13 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
             }
           }
 
-          // 0.6 saniye sonra sıfırla
           if (state.time - state.restartTime > 0.6) {
             stateRef.current = createState(levelData, characters);
             hasPublishedComplete.current = false;
             hasPublishedRestart.current = false; 
+            keysRef.current = {}; // Yeniden başlarken tuşları sıfırla
           }
         } else {
-          // Pozisyon yayınla
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
             playerStateActionRef.current.send({
@@ -128,7 +150,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
             lastPublishedTime.current = time;
           }
 
-          // Seviye tamamlandıysa bildir
           if (gameEventActionRef.current && roomId && state.levelComplete && !hasPublishedComplete.current) {
             gameEventActionRef.current.send({ type: 'level-complete' });
             hasPublishedComplete.current = true;
@@ -142,7 +163,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       
       render(ctx, renderData, isEditing, drawStart, drawCurrent);
 
-      // RESTART EKRANI
       if (!isEditing && state.restartRequested) {
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
@@ -169,6 +189,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     };
   }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId]);
 
+  // Editör Fare Kontrolleri
   const getGridCoords = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
