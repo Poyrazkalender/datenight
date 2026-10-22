@@ -4,11 +4,13 @@ import LevelEditor from './components/LevelEditor';
 import { LEVELS } from './game/levels';
 
 export default function App() {
-  // 🆕 Ekran yönetimi (menu veya game)
   const [screen, setScreen] = useState('menu');
   const [isMobile, setIsMobile] = useState(false);
   const [characters, setCharacters] = useState({ p1: 'platformBlue', p2: 'platformPink' });
   
+  // 🆕 Oda Kodu State'i
+  const [roomId, setRoomId] = useState('');
+
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
@@ -23,21 +25,43 @@ export default function App() {
     else alert("Tüm seviyeler tamamlandı! Tebrikler.");
   };
 
+  const startGame = (mobileMode) => {
+    setIsMobile(mobileMode);
+    // Eğer kullanıcı oda kodu girmediyse rastgele 4 haneli bir kod oluştur
+    if (!roomId.trim()) {
+      const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+      setRoomId(randomCode);
+    }
+    setScreen('game');
+  };
+
   // 🆕 Menü Ekranı
   if (screen === 'menu') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff' }}>
-        <h1 style={{ fontSize: 48, color: '#e84393', textShadow: '0 0 20px #e84393', marginBottom: 40 }}>LOVE GAME</h1>
+        <h1 style={{ fontSize: 48, color: '#e84393', textShadow: '0 0 20px #e84393', marginBottom: 20 }}>LOVE GAME</h1>
         
+        {/* Oda Kodu Girişi */}
+        <div style={{ marginBottom: 30, textAlign: 'center' }}>
+          <input 
+            type="text" 
+            placeholder="Oda Kodu (Örn: 1234)" 
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+            style={{ padding: 15, fontSize: 20, borderRadius: 8, border: '2px solid #3498db', background: '#1a1a2e', color: '#fff', textAlign: 'center', width: 250, outline: 'none' }}
+          />
+          <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Arkadaşınla aynı kodu girerek aynı odada buluşun.</p>
+        </div>
+
         <div style={{ display: 'flex', gap: 20, marginBottom: 40 }}>
           <button 
-            onClick={() => { setIsMobile(false); setScreen('game'); }}
+            onClick={() => startGame(false)}
             style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
           >
             💻 Bilgisayar
           </button>
           <button 
-            onClick={() => { setIsMobile(true); setScreen('game'); }}
+            onClick={() => startGame(true)}
             style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
           >
             📱 Mobil / Tablet
@@ -63,20 +87,22 @@ export default function App() {
               🎲 Rastgele
             </button>
           </div>
-          <p style={{ fontSize: 12, color: '#888', marginBottom: 0, marginTop: 15 }}>
-            *Rastgele seçilirse oyuncuların renkleri yer değiştirebilir.
-          </p>
         </div>
       </div>
     );
   }
 
-  // 🆕 Oyun Ekranı
+  // Oyun Ekranı
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
         <h1 style={{ margin: 0, letterSpacing: 2, color: '#e84393', textShadow: '0 0 10px #e84393' }}>LOVE GAME</h1>
         
+        {/* 🆕 Aktif Oda Kodu */}
+        <div style={{ padding: '8px 15px', background: '#1a1a2e', borderRadius: 4, border: '1px solid #3498db', color: '#3498db', fontWeight: 'bold' }}>
+          Oda: {roomId}
+        </div>
+
         <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4, fontWeight: 'bold' }}>
           {LEVELS.map((_, index) => <option key={index} value={index}>Seviye {index + 1}</option>)}
         </select>
@@ -91,7 +117,6 @@ export default function App() {
           </button>
         )}
 
-        {/* 🆕 Menüye Dön Butonu */}
         <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
           🏠 MENÜ
         </button>
@@ -103,8 +128,9 @@ export default function App() {
           selectedTool={selectedTool} 
           levelData={levelData} 
           onLevelChange={setLevelData} 
-          isMobile={isMobile} // 🆕 Eklendi
-          characters={characters} // 🆕 Eklendi
+          isMobile={isMobile} 
+          characters={characters} 
+          roomId={roomId} // 🆕 Oda kodu GameCanvas'a aktarılıyor
         />
         
         {isEditing && (
