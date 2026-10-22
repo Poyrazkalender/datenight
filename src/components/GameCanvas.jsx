@@ -3,53 +3,73 @@ import { WIDTH, HEIGHT } from '../game/constants';
 import { createState, update, updateRemotePlayer } from '../game/engineRestart';
 import { render } from '../game/renderer';
 import TouchControls from './TouchControls';
-// 🆕 ChannelProvider eklendi
-import { useChannel, ChannelProvider } from 'ably/react'; 
+import { joinRoom } from 'trystero'; // 🆕 Trystero import edildi
 
-export default function GameCanvas(props) {
-  // Eğer oda seçilmediyse lobi kanalını kullan
-  const channelName = props.roomId ? `game-room-${props.roomId}` : 'lobby-offline';
-
-  // Dış bileşen sadece ChannelProvider'ı sağlar
-  return (
-    <ChannelProvider channelName={channelName}>
-      <GameCanvasInner {...props} channelName={channelName} />
-    </ChannelProvider>
-  );
-}
-
-// İç bileşen asıl oyun mantığını barındırır
-function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, channelName }) {
+export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
   const lastPublishedTime = useRef(0);
   const hasPublishedComplete = useRef(false);
+  const roomRef = useRef(null);
+  const sendStateRef = useRef(null);
+  const sendEventRef = useRef(null);
 
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
 
-  // 🆕 Diğer oyuncudan gelen mesajları dinle (Artık ChannelProvider sayesinde sorunsuz çalışacak)
-    const { publish } = useChannel(channelName, (message) => {
-    // 🆕 Gelen mesajları konsola yazdır
-    console.log('📩 Mesaj Geldi:', message.name, message.data);
+  // 🆕 Trystero Oda Bağlantısı
+  useEffect(() => {
+    if (!roomId || isEditing) return;
 
-    if (isEditing || !stateRef.current) return;
+    // Odaya katıl (appId: 'love-game' uygulamamızın kimliği)
+    const room = joinRoom({ appId: 'love-game' }, roomId);
+    roomRef.current = room;
 
-    if (message.name === 'player-state') {
+    // Veri kanallarını oluştur
+    const [sendState, getState] = room.makeAction('player-state');
+    const [sendEvent, getEvent] = room.makeAction('game-event');
+
+    sendStateRef.current = sendState;
+    sendEventRef.current = sendEvent;
+
+    // Diğer oyuncudan gelen pozisyon verilerini dinle
+    getState((data) => {
+      if (!stateRef.current) return;
       const myPlayer = stateRef.current.players[0];
-      if (message.data.color !== myPlayer.color) {
-        updateRemotePlayer(stateRef.current, message.data);
+      if (data.color !== myPlayer.color) {
+        updateRemotePlayer(stateRef.current, data);
       }
-    } 
-    // ... geri kalan kodlar aynı
-  });
+    });
 
+    // Diğer oyuncudan gelen oyun olaylarını (seviye bitişi, restart) dinle
+    getEvent((data) => {
+      if (!stateRef.current) return;
+      if (data.type === 'level-complete') {
+        stateRef.current.levelComplete = true;
+      } else if (data.type === 'restart') {
+        stateRef.current.restartRequested = true;
+        stateRef.current.restartTime = stateRef.current.time;
+      }
+    });
+
+    console.log(`🔗 Trystero odasına bağlanıldı: ${roomId}`);
+
+    return () => {
+      room.leave();
+      roomRef.current = null;
+      sendStateRef.current = null;
+      sendEventRef.current = null;
+    };
+  }, [roomId, isEditing]);
+
+  // State oluştururken karakterleri ve seviyeyi yükle
   useEffect(() => {
     stateRef.current = createState(levelData, characters);
     hasPublishedComplete.current = false;
   }, [levelData, characters]);
 
+  // Oyun Döngüsü
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -79,13 +99,14 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
         if (state.restartRequested && state.time - state.restartTime > 0.6) {
           stateRef.current = createState(levelData, characters);
           hasPublishedComplete.current = false;
-          
-                  // 🆕 ABLY: Kendi pozisyonumuzu yayınla
-          if (publish && roomId && time - lastPublishedTime.current > 50) {
+          if (sendEventRef.current) sendEventRef.current({ type: 'restart' });
+        } else {
+          update(state, keysRef.current, dt);
+
+          // 🆕 TRYSTERO: Kendi pozisyonumuzu yayınla
+          if (sendStateRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
-            console.log('📤 Yayınlanıyor:', myPlayer.color, myPlayer.x.toFixed(1), myPlayer.y.toFixed(1)); // 🆕 Log eklendi
-            
-            publish('player-state', {
+            sendStateRef.current({
               color: myPlayer.color,
               x: myPlayer.x,
               y: myPlayer.y,
@@ -97,9 +118,9 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
             lastPublishedTime.current = time;
           }
 
-          // 🆕 ABLY: Seviye tamamlandıysa diğer oyuncuya bildir
-          if (publish && roomId && state.levelComplete && !hasPublishedComplete.current) {
-            publish('game-event', { type: 'level-complete' });
+          // 🆕 TRYSTERO: Seviye tamamlandıysa diğer oyuncuya bildir
+          if (sendEventRef.current && roomId && state.levelComplete && !hasPublishedComplete.current) {
+            sendEventRef.current({ type: 'level-complete' });
             hasPublishedComplete.current = true;
           }
         }
@@ -116,7 +137,6 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
-        
         ctx.fillStyle = `rgba(255, 80, 80, ${progress})`;
         ctx.font = 'bold 36px monospace';
         ctx.textAlign = 'center';
@@ -136,14 +156,13 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, characters, publish, roomId]);
+  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId]);
 
-  // --- Editör Fare Kontrolleri ---
+  // Editör Fare Kontrolleri
   const getGridCoords = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
     const scaleY = canvasRef.current.height / rect.height;
-    
     const x = Math.floor(((e.clientX - rect.left) * scaleX) / 20) * 20;
     const y = Math.floor(((e.clientY - rect.top) * scaleY) / 20) * 20;
     return { x, y };
@@ -152,7 +171,6 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
   const onMouseDown = (e) => {
     if (!isEditing) return;
     const { x, y } = getGridCoords(e);
-
     if (selectedTool === 'delete') {
       const newPlatforms = levelData.platforms.filter(p => 
         !(x >= p.x - 10 && x <= p.x + p.w + 10 && y >= p.y - 10 && y <= p.y + p.h + 10)
@@ -160,7 +178,6 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
       onLevelChange({ ...levelData, platforms: newPlatforms });
       return;
     }
-
     if (selectedTool === 'spawnBlue' || selectedTool === 'spawnPink' || selectedTool === 'goal') {
       if (selectedTool === 'spawnBlue') onLevelChange({ ...levelData, blueSpawn: { x, y } });
       if (selectedTool === 'spawnPink') onLevelChange({ ...levelData, pinkSpawn: { x, y } });
@@ -171,7 +188,6 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
       }
       return;
     }
-
     setDrawStart({ x, y });
     setDrawCurrent({ x, y });
   };
@@ -183,21 +199,17 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
 
   const onMouseUp = () => {
     if (!isEditing || !drawStart || !drawCurrent) return;
-    
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
     const w = Math.max(20, Math.abs(drawCurrent.x - drawStart.x));
     const h = Math.max(20, Math.abs(drawCurrent.y - drawStart.y));
-
     const newPlatform = { x, y, w, h, color: selectedTool, brackets: true };
-    
     if (['platformNeutral', 'platformBlue', 'platformPink'].includes(selectedTool)) {
       newPlatform.changeable = false;
     } else if (selectedTool === 'changeable') {
       newPlatform.color = 'platformNeutral';
       newPlatform.changeable = true;
     }
-
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);
     setDrawCurrent(null);
@@ -213,22 +225,13 @@ function GameCanvasInner({ isEditing, selectedTool, levelData, onLevelChange, is
         ref={canvasRef} 
         width={WIDTH} 
         height={HEIGHT} 
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
+        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
         style={{ 
-          border: '4px solid #111', 
-          borderRadius: 8, 
-          boxShadow: '0 0 30px rgba(0,0,0,0.8)',
-          imageRendering: 'pixelated',
-          cursor: isEditing ? 'crosshair' : 'default',
-          width: '100%',
-          height: 'auto',
-          touchAction: 'none'
+          border: '4px solid #111', borderRadius: 8, boxShadow: '0 0 30px rgba(0,0,0,0.8)',
+          imageRendering: 'pixelated', cursor: isEditing ? 'crosshair' : 'default',
+          width: '100%', height: 'auto', touchAction: 'none'
         }} 
       />
-      
       {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} />}
     </div>
   );
