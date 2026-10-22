@@ -5,15 +5,18 @@ import './index.css'
 import * as Ably from 'ably';
 import { AblyProvider } from 'ably/react';
 
+// 🆕 Her oyuncu için benzersiz bir clientId oluştur
+const myClientId = `player-${Math.random().toString(36).substr(2, 9)}`;
+
 const realtimeClient = new Ably.Realtime({
-  authUrl: '/api/auth', 
-  clientId: `player-${Math.random().toString(36).substr(2, 9)}`, 
+  // 🆕 authUrl'e clientId parametresini ekle
+  authUrl: `/api/auth?clientId=${myClientId}`, 
+  clientId: myClientId, 
 });
 
-// 🆕 Ably Bağlantı Durumunu Konsola Yazdır
+// 🆕 Bağlantı durumunu konsola yazdır
 realtimeClient.connection.on('connected', () => console.log('✅ Ably Bağlandı! Client ID:', realtimeClient.auth.clientId));
 realtimeClient.connection.on('failed', (err) => console.error('❌ Ably Bağlantı Hatası:', err));
-realtimeClient.connection.on('disconnected', () => console.warn('⚠️ Ably Bağlantısı Kesildi'));
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

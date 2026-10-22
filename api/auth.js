@@ -1,27 +1,22 @@
+// api/auth.js
 import Ably from 'ably';
 
 export default async function handler(req, res) {
-  // Eğer process.env okunamazsa, yedek olarak buradaki anahtarı kullan (Sadece yerel test için)
   const apiKey = process.env.ABLY_API_KEY || "Abi6Q.Rt2PLQ:YDuEZdqR3TuIyJCIwNjLqcfzVdGzHSsX4hupXlrrLfE";
+  const client = new Ably.Rest({ key: apiKey, queryTime: true });
   
-  console.log("Kullanılan API Key:", apiKey ? "Başarıyla Yüklendi" : "Bulunamadı");
+  // 🆕 Tarayıcıdan gelen clientId'yi al (GET isteğinin query parametresinden)
+  const requestedClientId = req.query.clientId;
 
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API Key yok' });
-  }
-
-  const client = new Ably.Rest({ 
-    key: apiKey,
-    queryTime: true 
-  });
-  
   try {
     const tokenRequest = await client.auth.createTokenRequest({
       capability: { '*': ['publish', 'subscribe'] },
+      // 🆕 clientId'yi token talebine ekle
+      clientId: requestedClientId 
     });
     res.status(200).json(tokenRequest);
   } catch (error) {
-    console.error("Ably Token Hatası:", error);
+    console.error("Ably Hatası:", error);
     res.status(500).json({ error: 'Token oluşturulamadı' });
   }
 }
