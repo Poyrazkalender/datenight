@@ -4,7 +4,8 @@ import { createState, update, updateRemotePlayer } from '../game/engineRestart';
 import { render } from '../game/renderer';
 import TouchControls from './TouchControls';
 // 🆕 Trystero MQTT stratejisi (Nostr relay hatalarını önler)
-import { joinRoom } from 'trystero/mqtt'; 
+// 🆕 Doğru MQTT modülünü import et
+import { joinRoom } from '@trystero-p2p/mqtt'; 
 
 export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId }) {
   const canvasRef = useRef(null);
@@ -27,7 +28,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     hasPublishedComplete.current = false;
   }, [levelData, characters]);
 
-  // 2. Trystero Oda Bağlantısı
+   // 🆕 Trystero Oda Bağlantısı (MQTT Stratejisi)
   useEffect(() => {
     if (!roomId || isEditing) return;
 
@@ -36,10 +37,11 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     roomRef.current = room;
     console.log(`🔗 Trystero odasına bağlanıldı: ${roomId}`);
 
-    // Eylemleri (Actions) oluştur
+    // 🆕 Eylemleri (Actions) oluştur (Güncel API)
     const playerStateAction = room.makeAction('player-state');
     const gameEventAction = room.makeAction('game-event');
 
+    // Referansları sakla
     playerStateActionRef.current = playerStateAction;
     gameEventActionRef.current = gameEventAction;
 
