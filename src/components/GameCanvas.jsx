@@ -86,6 +86,8 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
       } else if (data.type === 'platform-change') {
         stateRef.current.platforms[data.index].color = data.color;
         stateRef.current.platforms[data.index].customColor = null;
+      } else if (data.type === 'button-change' || data.type === 'timer-change') {
+        // Ağ üzerinden buton/zamanlayıcı tetiği alındığında sonraki frame update()'de işlenecek
       }
     };
 
@@ -145,6 +147,14 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
           setIsComplete(true);
         }
 
+        // 🆕 Buton veya Timer değişimi ağa yolla
+        if (gameEventActionRef.current && roomId && state.buttonStateChanged) {
+          gameEventActionRef.current.send({ 
+            type: state.buttonStateChanged.type === 'timer' ? 'timer-change' : 'button-change' 
+          });
+          state.buttonStateChanged = null;
+        }
+
         if (state.restartRequested) {
           if (!hasPublishedRestart.current) {
             hasPublishedRestart.current = true;
@@ -159,7 +169,11 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
           }
         } else if (!state.levelComplete) {
           if (gameEventActionRef.current && roomId && state.platformChanged) {
-            gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
+            gameEventActionRef.current.send({ 
+              type: 'platform-change', 
+              index: state.platformChanged.index, 
+              color: state.platformChanged.color 
+            });
             state.platformChanged = null;
           }
 
@@ -247,9 +261,13 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     return { x, y };
   };
 
-  const onMouseDown = (e) => {
+  // 🆕 MOBİL VE FARE İÇİN ORTAK DOKUNMATİK ÇİZİM KONTROLLERİ
+  const handlePointerDown = (e) => {
     if (!isEditing) return;
-    const { x, y } = getGridCoords(e);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const { x, y } = getGridCoords({ clientX, clientY });
+    
     if (selectedTool === 'delete') {
       const newPlatforms = levelData.platforms.filter(p => 
         !(x >= p.x - 10 && x <= p.x + p.w + 10 && y >= p.y - 10 && y <= p.y + p.h + 10)
@@ -271,12 +289,14 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     setDrawCurrent({ x, y });
   };
 
-  const onMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!isEditing || !drawStart) return;
-    setDrawCurrent(getGridCoords(e));
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setDrawCurrent(getGridCoords({ clientX, clientY }));
   };
 
-  const onMouseUp = () => {
+  const handlePointerUp = () => {
     if (!isEditing || !drawStart || !drawCurrent) return;
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
@@ -284,23 +304,34 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     const h = Math.max(20, Math.abs(drawCurrent.y - drawStart.y));
     const newPlatform = { x, y, w, h, brackets: true };
     
-    if (selectedTool === 'changeable') {
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = false;
-    } else if (selectedTool === 'wallChangeable') {
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = true;
-    } else if (selectedTool === 'platformNeutral') {
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = false;
-    } else if (selectedTool === 'wallNeutral') {
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = true;
-    } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') {
-      newPlatform.color = selectedTool; newPlatform.changeable = false; newPlatform.isWall = false;
-    }
-
-    if (newPlatform.color === 'platformNeutral') {
-      newPlatform.customColor = customColor; 
+    // Araç özellikleri atama
+    if (selectedTool === 'changeable') { 
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = false; 
+    } else if (selectedTool === 'wallChangeable') { 
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = true; 
+    } else if (selectedTool === 'platformNeutral') { 
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = false; 
+    } else if (selectedTool === 'wallNeutral') { 
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = true; 
+    } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') { 
+      newPlatform.color = selectedTool; newPlatform.changeable = false; newPlatform.isWall = false; 
     }
     
-    // 🆕 Eğer editörden özel bir görsel (sprite) seçildiyse platforma ata
+    // 🆕 Yeni Eklenen Araç Tipleri
+    else if (selectedTool === 'platformTimer') { 
+      newPlatform.isTimer = true; newPlatform.color = 'platformBlue'; newPlatform.isWall = false; 
+    } else if (selectedTool === 'platformRemote') { 
+      newPlatform.isRemote = true; newPlatform.color = 'platformNeutral'; newPlatform.isWall = false; 
+    } else if (selectedTool === 'buttonBlue') { 
+      newPlatform.isButtonBlue = true; newPlatform.color = 'platformBlue'; newPlatform.isWall = false; 
+    } else if (selectedTool === 'buttonPink') { 
+      newPlatform.isButtonPink = true; newPlatform.color = 'platformPink'; newPlatform.isWall = false; 
+    }
+
+    if (newPlatform.color === 'platformNeutral' && !newPlatform.isRemote) {
+      newPlatform.customColor = customColor; 
+    }
+
     if (customSprite) {
       newPlatform.sprite = customSprite;
     }
@@ -310,25 +341,29 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     setDrawCurrent(null);
   };
 
-  const handleTouchKey = (key, isPressed) => {
-    keysRef.current[key] = isPressed;
-  };
-
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: WIDTH, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: WIDTH, display: 'flex', justifyContent: 'center', touchAction: 'none' }}>
       <canvas 
         ref={canvasRef} 
         width={WIDTH} 
         height={HEIGHT} 
-        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+        onMouseDown={handlePointerDown}
+        onMouseMove={handlePointerMove}
+        onMouseUp={handlePointerUp}
+        onMouseLeave={handlePointerUp}
+        onTouchStart={handlePointerDown} // 🆕 Mobil Dokunmatik Çizim
+        onTouchMove={handlePointerMove}  // 🆕 Mobil Dokunmatik Çizim
+        onTouchEnd={handlePointerUp}     // 🆕 Mobil Dokunmatik Çizim
         style={{ 
           border: '4px solid #111', borderRadius: 8, boxShadow: '0 0 30px rgba(0,0,0,0.8)',
           imageRendering: 'pixelated', cursor: isEditing ? 'crosshair' : 'default',
-          width: '100%', height: 'auto', touchAction: 'none'
+          width: '100%', height: 'auto'
         }} 
       />
       
-      {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} />}
+      {!isEditing && isMobile && (
+        <TouchControls onKeyChange={(key, isPressed) => keysRef.current[key] = isPressed} />
+      )}
 
       {isComplete && !isEditing && (
         <div style={{

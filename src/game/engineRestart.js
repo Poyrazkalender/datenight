@@ -12,6 +12,7 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
       { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1, isConnected: false }
     ],
     platformChanged: null,
+    buttonStateChanged: null, // 🆕 Buton durumu değişince ağa bildirmek için
   };
 }
 
@@ -36,7 +37,6 @@ function checkCollision(p, plat) {
   );
 }
 
-// 🆕 TEK KURAL: Nötr veya kendi rengindeyse katıdır. (Hem zemin hem duvar için geçerli)
 function isSolid(playerColor, plat) {
   if (plat.color === 'platformNeutral') return true; 
   if (plat.color === playerColor) return true; 
@@ -56,6 +56,54 @@ export function update(state, keys, dt) {
   state.time += dt;
   if (state.levelComplete || state.restartRequested) return;
 
+  // 🆕 ZAMANLAYICI PLATFORMLAR (Timer)
+  let timerStateChanged = false;
+  for (const plat of state.platforms) {
+    if (plat.isTimer) {
+      // Her 3 saniyede bir renk değiştirir
+      const cycle = Math.floor(state.time / 3) % 2; 
+      const newColor = cycle === 0 ? 'platformBlue' : 'platformPink';
+      if (plat.color !== newColor) {
+        plat.color = newColor;
+        timerStateChanged = true;
+      }
+    }
+  }
+  // Timer değişimini ağa yolla (Sadece state değiştiyse)
+  if (timerStateChanged) {
+    state.buttonStateChanged = { type: 'timer' }; 
+  }
+
+  // 🆕 BUTONLARI KONTROL ET
+  let blueBtnPressed = false;
+  let pinkBtnPressed = false;
+  
+  for (const p of state.players) {
+    // Eğer oyuncu (veya ağdan gelen P2) butona değiyorsa
+    for (const plat of state.platforms) {
+      if (plat.isButtonBlue && checkCollision(p, plat)) blueBtnPressed = true;
+      if (plat.isButtonPink && checkCollision(p, plat)) pinkBtnPressed = true;
+    }
+  }
+
+  // Uzaktan kumandalı platformları güncelle
+  let remoteChanged = false;
+  for (const plat of state.platforms) {
+    if (plat.isRemote) {
+      let targetColor = null;
+      if (blueBtnPressed) targetColor = 'platformBlue';
+      if (pinkBtnPressed) targetColor = 'platformPink';
+      
+      if (targetColor && plat.color !== targetColor) {
+        plat.color = targetColor;
+        remoteChanged = true;
+      }
+    }
+  }
+  if (remoteChanged) {
+    state.buttonStateChanged = { type: 'remote' };
+  }
+
   const p = state.players[0]; 
   
   // --- 1. YATAY HAREKET (X Ekseni) ---
@@ -71,9 +119,8 @@ export function update(state, keys, dt) {
 
   p.x += p.vx * dt;
 
-  // X Ekseni Çarpışma (Sadece Duvarlar için yatayda durdurma)
   for (const plat of state.platforms) {
-    if (plat.isWall && isSolid(p.color, plat) && checkCollision(p, plat)) {
+    if (plat.isWall && !plat.isButtonBlue && !plat.isButtonPink && !plat.isRemote && isSolid(p.color, plat) && checkCollision(p, plat)) {
       if (p.vx > 0) p.x = plat.x - p.w; 
       else if (p.vx < 0) p.x = plat.x + plat.w; 
       p.vx = 0;
@@ -92,11 +139,9 @@ export function update(state, keys, dt) {
   p.y += p.vy * dt;
   p.grounded = false;
 
-  // Y Ekseni Çarpışma (Zeminler ve Duvarlar için)
   for (const plat of state.platforms) {
-    if (isSolid(p.color, plat) && checkCollision(p, plat)) {
+    if (!plat.isButtonBlue && !plat.isButtonPink && isSolid(p.color, plat) && checkCollision(p, plat)) {
       if (plat.isWall) {
-        // Duvarlar her yönden katı
         if (p.vy > 0 && prevY + p.h <= plat.y + 10) { 
           p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
           handleColorChange(plat, p, state);
@@ -105,7 +150,6 @@ export function update(state, keys, dt) {
           handleColorChange(plat, p, state);
         }
       } else {
-        // Zeminler sadece üstüne basıldığında katı
         if (p.vy >= 0 && prevY + p.h <= plat.y + 5) {
           p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
           handleColorChange(plat, p, state);
@@ -124,7 +168,6 @@ export function update(state, keys, dt) {
 
   const goal = state.platforms.find(p => p.isGoal);
   if (goal) {
-    // İki oyuncu da hedefteyse bitir
     const bothOnGoal = state.players.every(p => 
       Math.abs((p.y + p.h) - goal.y) < 15 && 
       p.x + p.w > goal.x && p.x < goal.x + goal.w

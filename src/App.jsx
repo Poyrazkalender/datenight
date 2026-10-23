@@ -41,7 +41,12 @@ export default function App() {
   };
 
   const handleExportJSON = () => {
-    const json = JSON.stringify({ platforms: levelData.platforms, blueSpawn: levelData.blueSpawn, pinkSpawn: levelData.pinkSpawn, backgroundImage: levelData.backgroundImage || null }, null, 2);
+    const json = JSON.stringify({ 
+      platforms: levelData.platforms, 
+      blueSpawn: levelData.blueSpawn, 
+      pinkSpawn: levelData.pinkSpawn, 
+      backgroundImage: levelData.backgroundImage || null 
+    }, null, 2);
     navigator.clipboard.writeText(json);
   };
 
@@ -75,35 +80,43 @@ export default function App() {
   if (screen === 'editor') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15 }}>
-          <h1 style={{ margin: 0, color: '#f1c40f' }}>LEVEL EDİTÖRÜ</h1>
-          <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4, fontWeight: 'bold' }}>
-            {levelsList.map((_, index) => <option key={index} value={index}>Seviye {index + 1}</option>)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <h1 style={{ margin: 0, color: '#f1c40f', fontSize: 20 }}>EDİTÖR</h1>
+          <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4 }}>
+            {levelsList.map((_, index) => <option key={index} value={index}>Sev {index + 1}</option>)}
           </select>
-          
-          <button onClick={() => setIsTesting(!isTesting)} style={{ padding: '10px 20px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
+          <button onClick={() => setIsTesting(!isTesting)} style={{ padding: '10px 15px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
-
-          <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 ANA MENÜ</button>
+          <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 15px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 MENÜ</button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+        {/* 🆕 MOBİL İÇİN FLEX COLUMN, PC İÇİN ROW */}
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: 20, width: '100%', padding: '0 10px', justifyContent: 'center' }}>
           <GameCanvas 
             isEditing={!isTesting} 
-            selectedTool={selectedTool} customColor={customColor} customSprite={customSprite}
-            levelData={levelData} onLevelChange={setLevelData} isMobile={false} characters={characters} 
-            roomId={null} currentLevelIndex={0} setCurrentLevelIndex={() => {}} onExit={() => setIsTesting(false)} 
+            selectedTool={selectedTool} 
+            customColor={customColor} 
+            customSprite={customSprite}
+            levelData={levelData} 
+            onLevelChange={setLevelData} 
+            isMobile={isMobile} 
+            characters={characters} 
+            roomId={null} 
+            currentLevelIndex={0} 
+            setCurrentLevelIndex={() => {}} 
+            onExit={() => setIsTesting(false)} 
           />
-          
           {!isTesting && (
-            <LevelEditor 
-              selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
-              customColor={customColor} setCustomColor={setCustomColor} 
-              customSprite={customSprite} setCustomSprite={setCustomSprite} // 🆕 Prop geçildi
-              levelData={levelData} setLevelData={setLevelData} 
-              onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
-            />
+            <div style={{ width: isMobile ? '100%' : 'auto', display: 'flex', justifyContent: 'center' }}>
+              <LevelEditor 
+                selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
+                customColor={customColor} setCustomColor={setCustomColor} 
+                customSprite={customSprite} setCustomSprite={setCustomSprite}
+                levelData={levelData} setLevelData={setLevelData} 
+                onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
+              />
+            </div>
           )}
         </div>
       </div>

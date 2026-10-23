@@ -3,6 +3,7 @@ import { COLORS, WIDTH, HEIGHT } from './constants';
 const blueImg = new Image(); blueImg.src = '/assets/player-blue.png';
 const pinkImg = new Image(); pinkImg.src = '/assets/player-pink.png';
 const bgImg = new Image();
+const imageCache = {};
 
 // 🆕 Sprite önbelleği (performans için)
 const imageCache = {};
@@ -49,20 +50,38 @@ function drawPlatforms(ctx, state) {
   for (const plat of state.platforms) {
     if (plat.isGoal) continue;
     
-    const color = plat.customColor || COLORS[plat.color] || plat.color;
+    let color = plat.customColor || COLORS[plat.color] || plat.color;
     const isFlashing = plat.flashUntil && state.time < plat.flashUntil;
 
-    // 🆕 Eğer platforma özel bir sprite yüklendiyse onu çiz
+    // 🆕 Buton Görünümü
+    if (plat.isButtonBlue || plat.isButtonPink) {
+      color = plat.isButtonBlue ? '#00a7f8' : '#e84393';
+      ctx.save();
+      ctx.shadowColor = color; ctx.shadowBlur = 20;
+      ctx.fillStyle = color; 
+      ctx.beginPath();
+      ctx.roundRect(plat.x, plat.y, plat.w, plat.h, 10);
+      ctx.fill();
+      ctx.restore();
+      continue; // Butonların üstüne başka şey çizme
+    }
+
+    // 🆕 Zamanlayıcı Görünümü (Saat ikonu veya kenarlık)
+    if (plat.isTimer) {
+      ctx.save();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+      ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+      ctx.restore();
+    }
+
     if (plat.sprite && !isFlashing) {
       if (!imageCache[plat.sprite]) {
-        const img = new Image();
-        img.src = plat.sprite;
-        imageCache[plat.sprite] = img;
+        const img = new Image(); img.src = plat.sprite; imageCache[plat.sprite] = img;
       }
       const img = imageCache[plat.sprite];
       if (img.complete) {
         ctx.drawImage(img, plat.x, plat.y, plat.w, plat.h);
-        continue; // Sprite çizildiyse renk kodlarına geçme
+        continue; 
       }
     }
 
@@ -76,16 +95,6 @@ function drawPlatforms(ctx, state) {
     if (!isFlashing) { 
       ctx.fillStyle = 'rgba(255,255,255,0.3)'; 
       ctx.fillRect(plat.x, plat.y, plat.w, 3); 
-    }
-    
-    if (plat.brackets) {
-      ctx.fillStyle = '#333';
-      const bSpacing = plat.w / 4;
-      for (let i = 1; i <= 3; i++) {
-        const bx = plat.x + (bSpacing * i) - 2;
-        ctx.fillRect(bx, plat.y + plat.h, 4, 8);
-        ctx.beginPath(); ctx.arc(bx + 2, plat.y + plat.h + 8, 3, 0, Math.PI * 2); ctx.fill();
-      }
     }
   }
 }
