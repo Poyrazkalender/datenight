@@ -17,7 +17,7 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
         // Renk mavi ise mavi noktada, pembe ise pembe noktada doğ
         x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, 
         y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, 
-        w: 24, h: 24, vx: 0, vy: 0, 
+        w: 50, h: 50, vx: 0, vy: 0, 
         speed: 260, jumpSpeed: 720, grounded: false, facing: 1,
         // P1 Kontrolleri (Klavye / Joystick)
         controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1 
@@ -26,7 +26,7 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
         color: characters.p2, 
         x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, 
         y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, 
-        w: 24, h: 24, vx: 0, vy: 0, 
+        w: 50, h: 50, vx: 0, vy: 0, 
         speed: 260, jumpSpeed: 720, grounded: false, facing: 1,
         // 🆕 P2 Kontrolleri Kapatıldı (Sadece ağdan gelen sinyalleri alacak)
         controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1 
