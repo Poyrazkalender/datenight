@@ -3,7 +3,7 @@ import { COLORS, WIDTH, HEIGHT } from './constants';
 const blueImg = new Image(); blueImg.src = '/assets/player-blue.png';
 const pinkImg = new Image(); pinkImg.src = '/assets/player-pink.png';
 const bgImg = new Image();
-const imageCache = {};
+
 
 // 🆕 Sprite önbelleği (performans için)
 const imageCache = {};
