@@ -74,11 +74,15 @@ function drawPlatforms(ctx, state) {
       ctx.restore();
     }
 
-    if (plat.sprite && !isFlashing) {
-      if (!imageCache[plat.sprite]) {
-        const img = new Image(); img.src = plat.sprite; imageCache[plat.sprite] = img;
+    // drawPlatforms içindeki sprite çizim kısmını güncelle:
+    // 🆕 Dokunulduysa spriteTouched, değilse normal sprite kullan
+    let activeSprite = (plat.isTouched && plat.spriteTouched) ? plat.spriteTouched : plat.sprite;
+
+    if (activeSprite && !isFlashing) {
+      if (!imageCache[activeSprite]) {
+        const img = new Image(); img.src = activeSprite; imageCache[activeSprite] = img;
       }
-      const img = imageCache[plat.sprite];
+      const img = imageCache[activeSprite];
       if (img.complete) {
         ctx.drawImage(img, plat.x, plat.y, plat.w, plat.h);
         continue; 

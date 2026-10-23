@@ -13,6 +13,7 @@ export default function GameCanvas({
   selectedTool, 
   customColor, 
   customSprite, 
+  customSpriteTouched, // 🆕 Dokunulunca gösterilecek sprite
   levelData, 
   onLevelChange, 
   isMobile, 
@@ -150,7 +151,6 @@ export default function GameCanvas({
       const state = stateRef.current;
 
       if (!isEditing) {
-        // controlledPlayer ve isTesting parametreleri aktarılıyor
         update(state, keysRef.current, dt, controlledPlayer, isTesting);
 
         if (state.levelComplete && !isComplete) {
@@ -325,7 +325,15 @@ export default function GameCanvas({
     if (newPlatform.color === 'platformNeutral') {
       newPlatform.customColor = customColor; 
     }
+
+    // 🆕 Uzaktan kumandalı platformlar için varsayılan rengi ata
+    if (newPlatform.isRemote) {
+      newPlatform.defaultColor = customColor;
+      newPlatform.customColor = customColor;
+    }
+
     if (customSprite) newPlatform.sprite = customSprite;
+    if (customSpriteTouched) newPlatform.spriteTouched = customSpriteTouched; // 🆕 Dokunulunca görünmesini sağlayacak sprite
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);

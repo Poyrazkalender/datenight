@@ -4,7 +4,12 @@ import { LEVELS } from './levels';
 export function createState(levelData = LEVELS[0], characters = { p1: 'platformBlue', p2: 'platformPink' }, forceP2Active = false) {
   return {
     time: 0, levelComplete: false, completedAt: 0, restartRequested: false, restartTime: 0,
-    platforms: levelData.platforms.map(p => ({ ...p })),
+    platforms: levelData.platforms.map(p => ({ 
+      ...p, 
+      isTouched: false, // 🆕 Dokunma durumu
+      defaultColor: p.color || 'platformNeutral', // 🆕 Varsayılan renk
+      isActive: false // 🆕 Uzaktan platformun aktiflik durumu
+    })),
     blueSpawn: { ...levelData.blueSpawn },
     pinkSpawn: { ...levelData.pinkSpawn },
     players: [
@@ -38,6 +43,11 @@ function checkCollision(p, plat) {
 }
 
 function isSolid(playerColor, plat) {
+  // 🆕 Uzaktan kumandalı platform: Sadece butona basıldığında katıdır.
+  if (plat.isRemote) {
+    return plat.isActive === true;
+  }
+  
   if (plat.color === 'platformNeutral') return true; 
   if (plat.color === playerColor) return true; 
   return false; 
@@ -52,48 +62,60 @@ function handleColorChange(plat, p, state) {
   }
 }
 
-// 🆕 Fonksiyon controlledPlayer ve isTesting parametrelerini alıyor
 export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = false) {
   state.time += dt;
   if (state.levelComplete || state.restartRequested) return;
 
-  // Zamanlayıcı ve Buton mantığı (Değişmedi)
+  // 🆕 Her frame başında dokunma durumlarını sıfırla
+  for (const plat of state.platforms) plat.isTouched = false;
+
+  // ZAMANLAYICI PLATFORMLAR
   let timerStateChanged = false;
   for (const plat of state.platforms) {
     if (plat.isTimer) {
       const cycle = Math.floor(state.time / 3) % 2; 
       const newColor = cycle === 0 ? 'platformBlue' : 'platformPink';
-      if (plat.color !== newColor) { plat.color = newColor; timerStateChanged = true; }
+      if (plat.color !== newColor) { 
+        plat.color = newColor; 
+        plat.customColor = null;
+        timerStateChanged = true; 
+      }
     }
   }
   if (timerStateChanged) state.buttonStateChanged = { type: 'timer' }; 
 
+  // BUTONLAR
   let blueBtnPressed = false; let pinkBtnPressed = false;
   for (const p of state.players) {
     for (const plat of state.platforms) {
-      if (plat.isButtonBlue && checkCollision(p, plat)) blueBtnPressed = true;
-      if (plat.isButtonPink && checkCollision(p, plat)) pinkBtnPressed = true;
+      if (checkCollision(p, plat)) {
+        plat.isTouched = true; // 🆕 Oyuncu platforma değiyor
+        if (plat.isButtonBlue) blueBtnPressed = true;
+        if (plat.isButtonPink) pinkBtnPressed = true;
+      }
     }
   }
-    // Uzaktan kumandalı platformları güncelle
+
+  // UZAKTAN KUMANDALI PLATFORMLAR
   let remoteChanged = false;
   for (const plat of state.platforms) {
     if (plat.isRemote) {
-      // 🆕 Butona basılıysa mavi/pembe, basılı değilse nötr renk al
-      let targetColor = blueBtnPressed ? 'platformBlue' : pinkBtnPressed ? 'platformPink' : 'platformNeutral';
+      // 🆕 Butona basıldıysa aktif olur (katılaşır)
+      const isNowActive = blueBtnPressed || pinkBtnPressed;
+      let targetColor = isNowActive ? (blueBtnPressed ? 'platformBlue' : 'platformPink') : plat.defaultColor;
       
-      if (plat.color !== targetColor || plat.customColor) {
+      if (plat.isActive !== isNowActive || plat.color !== targetColor) {
+        plat.isActive = isNowActive;
         plat.color = targetColor;
-        plat.customColor = null; // 🆕 Editörde atanan özel rengi sil ki buton rengi görünsün
+        // Aktifken özel rengi gizle, değilken varsayılan rengi kullan
+        plat.customColor = isNowActive ? null : plat.defaultColor; 
         remoteChanged = true;
       }
     }
   }
-  if (remoteChanged) {
-    state.buttonStateChanged = { type: 'remote' };
-  }
+  if (remoteChanged) state.buttonStateChanged = { type: 'remote' };
 
-  // 🆕 TEST MODUNDA DİĞER OYUNCUYA YERÇEKİMİ UYGULA
+  // TEST MODUNDA DİĞER OYUNCUYA YERÇEKİMİ
   if (isTesting) {
     const otherIndex = controlledPlayer === 'P1' ? 1 : 0;
     const otherP = state.players[otherIndex];
@@ -113,7 +135,7 @@ export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = fal
     }
   }
 
-  // 🆕 HANGİ OYUNCU KONTROL EDİLİYORSA ONU HAREKET ETTİR
+  // AKTİF OYUNCU HAREKETİ
   const activeIndex = controlledPlayer === 'P2' ? 1 : 0;
   const p = state.players[activeIndex]; 
   
@@ -149,6 +171,10 @@ export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = fal
   p.grounded = false;
 
   for (const plat of state.platforms) {
+    if (checkCollision(p, plat)) {
+      plat.isTouched = true; // 🆕 Oyuncu platforma değiyor (sprite değişimi için)
+    }
+    
     if (!plat.isButtonBlue && !plat.isButtonPink && isSolid(p.color, plat) && checkCollision(p, plat)) {
       if (plat.isWall) {
         if (p.vy > 0 && prevY + p.h <= plat.y + 10) { 

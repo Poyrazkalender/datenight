@@ -1,6 +1,19 @@
 import { useState } from 'react';
 
-export default function LevelEditor({ selectedTool, setSelectedTool, customColor, setCustomColor, customSprite, setCustomSprite, levelData, setLevelData, onAddNewLevel, onExportJSON }) {
+export default function LevelEditor({ 
+  selectedTool, 
+  setSelectedTool, 
+  customColor, 
+  setCustomColor, 
+  customSprite, 
+  setCustomSprite, 
+  customSpriteTouched, 
+  setCustomSpriteTouched, 
+  levelData, 
+  setLevelData, 
+  onAddNewLevel, 
+  onExportJSON 
+}) {
   const [copied, setCopied] = useState(false);
 
   const tools = [
@@ -38,6 +51,15 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
     }
   };
 
+  const handleSpriteTouchedUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setCustomSpriteTouched(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleExport = () => {
     onExportJSON();
     setCopied(true);
@@ -48,7 +70,7 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
     <div style={{ width: '100%', maxWidth: 320, background: '#1a1a2e', padding: 20, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <h3 style={{ margin: 0, color: '#fff', fontSize: 16 }}>Araçlar</h3>
       
-      {/* 🆕 RENK SEÇİCİ GERİ EKLENDİ */}
+      {/* RENK SEÇİCİ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#2a2a40', padding: 10, borderRadius: 4 }}>
         <span style={{ fontSize: 12, color: '#fff' }}>Renk:</span>
         <input type="color" value={customColor} onChange={(e) => setCustomColor(e.target.value)} style={{ cursor: 'pointer', border: 'none', background: 'none', width: 40, height: 30 }} />
@@ -67,9 +89,16 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
       <hr style={{ borderColor: '#333', width: '100%', margin: '10px 0' }} />
 
       <div style={{ background: '#2a2a40', padding: 10, borderRadius: 4 }}>
-        <span style={{ fontSize: 12, color: '#fff', display: 'block', marginBottom: 5 }}>Platform Sprite:</span>
+        <span style={{ fontSize: 12, color: '#fff', display: 'block', marginBottom: 5 }}>Platform Sprite (Normal):</span>
         <input type="file" accept="image/*" onChange={handleSpriteUpload} style={{ fontSize: 11, color: '#ccc', width: '100%' }} />
         {customSprite && <button onClick={() => setCustomSprite(null)} style={{ marginTop: 5, fontSize: 11, background: '#e74c3c', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>Görseli Kaldır</button>}
+      </div>
+
+      {/* 🆕 2. Sprite Yükleme */}
+      <div style={{ background: '#2a2a40', padding: 10, borderRadius: 4 }}>
+        <span style={{ fontSize: 12, color: '#fff', display: 'block', marginBottom: 5 }}>Platform Sprite (Dokunulunca):</span>
+        <input type="file" accept="image/*" onChange={handleSpriteTouchedUpload} style={{ fontSize: 11, color: '#ccc', width: '100%' }} />
+        {customSpriteTouched && <button onClick={() => setCustomSpriteTouched(null)} style={{ marginTop: 5, fontSize: 11, background: '#e74c3c', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>Görseli Kaldır</button>}
       </div>
 
       <div style={{ background: '#2a2a40', padding: 10, borderRadius: 4 }}>
