@@ -11,12 +11,11 @@ export default function App() {
   
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [customColor, setCustomColor] = useState('#ff5733');
+  const [customSprite, setCustomSprite] = useState(null); // 🆕 Sprite State'i
   
   const [levelsList, setLevelsList] = useState(INITIAL_LEVELS);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
-  
-  // 🆕 Test Modu State'i
   const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
@@ -46,7 +45,6 @@ export default function App() {
     navigator.clipboard.writeText(json);
   };
 
-  // --- MENÜ EKRANI ---
   if (screen === 'menu') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff' }}>
@@ -74,7 +72,6 @@ export default function App() {
     );
   }
 
-  // --- EDİTÖR EKRANI ---
   if (screen === 'editor') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
@@ -84,11 +81,7 @@ export default function App() {
             {levelsList.map((_, index) => <option key={index} value={index}>Seviye {index + 1}</option>)}
           </select>
           
-          {/* 🆕 TEST ET BUTONU */}
-          <button 
-            onClick={() => setIsTesting(!isTesting)} 
-            style={{ padding: '10px 20px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}
-          >
+          <button onClick={() => setIsTesting(!isTesting)} style={{ padding: '10px 20px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
 
@@ -96,19 +89,18 @@ export default function App() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
-          {/* Test modundaysa isEditing false olur ve oyun oynanır */}
           <GameCanvas 
             isEditing={!isTesting} 
-            selectedTool={selectedTool} customColor={customColor}
+            selectedTool={selectedTool} customColor={customColor} customSprite={customSprite}
             levelData={levelData} onLevelChange={setLevelData} isMobile={false} characters={characters} 
             roomId={null} currentLevelIndex={0} setCurrentLevelIndex={() => {}} onExit={() => setIsTesting(false)} 
           />
           
-          {/* Test modundaysa editör panelini gizle */}
           {!isTesting && (
             <LevelEditor 
               selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
               customColor={customColor} setCustomColor={setCustomColor} 
+              customSprite={customSprite} setCustomSprite={setCustomSprite} // 🆕 Prop geçildi
               levelData={levelData} setLevelData={setLevelData} 
               onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
             />
@@ -118,7 +110,6 @@ export default function App() {
     );
   }
 
-  // --- OYUN EKRANI ---
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -129,7 +120,7 @@ export default function App() {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'center' }}>
         <GameCanvas 
-          isEditing={false} selectedTool={selectedTool} customColor={customColor}
+          isEditing={false} selectedTool={selectedTool} customColor={customColor} customSprite={customSprite}
           levelData={levelData} onLevelChange={setLevelData} isMobile={isMobile} characters={characters} 
           roomId={roomId} currentLevelIndex={currentLevelIndex} setCurrentLevelIndex={setCurrentLevelIndex} onExit={() => setScreen('menu')} 
         />

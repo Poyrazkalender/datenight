@@ -2,16 +2,16 @@ import { COLORS, WIDTH, HEIGHT } from './constants';
 
 const blueImg = new Image(); blueImg.src = '/assets/player-blue.png';
 const pinkImg = new Image(); pinkImg.src = '/assets/player-pink.png';
-
-// 🆕 Arka plan resmini tutmak için
 const bgImg = new Image();
+
+// 🆕 Sprite önbelleği (performans için)
+const imageCache = {};
 
 function roundRect(ctx, x, y, w, h, r) { 
   if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
   ctx.beginPath(); ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
   ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x + w - r, y + h);
   ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
   ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
@@ -32,15 +32,11 @@ function drawBrickWall(ctx) {
   ctx.lineWidth = 4; ctx.strokeStyle = '#c8955b'; ctx.strokeRect(8, 8, WIDTH - 16, HEIGHT - 16);
 }
 
-// 🆕 Arka plan çizici güncellendi
 function drawBackground(ctx, state) {
   if (state.backgroundImage) {
-    if (bgImg.src !== state.backgroundImage) {
-      bgImg.src = state.backgroundImage;
-    }
+    if (bgImg.src !== state.backgroundImage) bgImg.src = state.backgroundImage;
     if (bgImg.complete) {
       ctx.drawImage(bgImg, 0, 0, WIDTH, HEIGHT);
-      // Resmin üstüne hafif bir karartma ekleyelim ki platformlar okunsun
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
     }
@@ -53,10 +49,23 @@ function drawPlatforms(ctx, state) {
   for (const plat of state.platforms) {
     if (plat.isGoal) continue;
     
-    // 🆕 Özel renk varsa onu kullan, yoksa varsayılanı
     const color = plat.customColor || COLORS[plat.color] || plat.color;
     const isFlashing = plat.flashUntil && state.time < plat.flashUntil;
-    
+
+    // 🆕 Eğer platforma özel bir sprite yüklendiyse onu çiz
+    if (plat.sprite && !isFlashing) {
+      if (!imageCache[plat.sprite]) {
+        const img = new Image();
+        img.src = plat.sprite;
+        imageCache[plat.sprite] = img;
+      }
+      const img = imageCache[plat.sprite];
+      if (img.complete) {
+        ctx.drawImage(img, plat.x, plat.y, plat.w, plat.h);
+        continue; // Sprite çizildiyse renk kodlarına geçme
+      }
+    }
+
     ctx.save();
     ctx.shadowColor = isFlashing ? '#ffffff' : color;
     ctx.shadowBlur = isFlashing ? 30 : 10;
@@ -101,7 +110,6 @@ function drawPlayers(ctx, state) {
   for (let i = 0; i < state.players.length; i++) {
     const p = state.players[i];
     
-    // 🆕 Karşı oyuncu (P2) henüz bağlanmadıysa çizme
     if (i === 1 && !p.isConnected) continue; 
 
     const img = p.color === 'platformBlue' ? blueImg : pinkImg;
@@ -153,7 +161,7 @@ function drawEditorOverlays(ctx, state, drawStart, drawCurrent) {
 }
 
 export function render(ctx, state, isEditing, drawStart, drawCurrent) {
-  drawBackground(ctx, state); // 🆕 Güncellendi
+  drawBackground(ctx, state);
   drawPlatforms(ctx, state);
   drawGoal(ctx, state);
   if (!isEditing) drawPlayers(ctx, state); 

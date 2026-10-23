@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function LevelEditor({ selectedTool, setSelectedTool, customColor, setCustomColor, levelData, setLevelData, onAddNewLevel, onExportJSON }) {
+export default function LevelEditor({ selectedTool, setSelectedTool, customColor, setCustomColor, customSprite, setCustomSprite, levelData, setLevelData, onAddNewLevel, onExportJSON }) {
   const [copied, setCopied] = useState(false);
 
   const tools = [
@@ -16,7 +16,6 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
     { id: 'delete', label: 'Sil', color: '#ff0000' },
   ];
 
-  // 🆕 Resim Yükleme
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -28,8 +27,19 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
     }
   };
 
+  const handleSpriteUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomSprite(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleExport = () => {
-    onExportJSON(); // App.jsx'teki fonksiyonu çağır
+    onExportJSON();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -55,7 +65,15 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
 
       <hr style={{ borderColor: '#333', width: '100%', margin: '10px 0' }} />
 
-      {/* 🆕 Arka Plan Resmi Yükleme */}
+      {/* 🆕 Platform Sprite Yükleme */}
+      <div style={{ background: '#2a2a40', padding: 10, borderRadius: 4 }}>
+        <span style={{ fontSize: 12, color: '#fff', display: 'block', marginBottom: 5 }}>Platform Görseli (Sprite):</span>
+        <input type="file" accept="image/*" onChange={handleSpriteUpload} style={{ fontSize: 11, color: '#ccc' }} />
+        {customSprite && (
+          <button onClick={() => setCustomSprite(null)} style={{ marginTop: 5, fontSize: 11, background: '#e74c3c', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>Görseli Kaldır</button>
+        )}
+      </div>
+
       <div style={{ background: '#2a2a40', padding: 10, borderRadius: 4 }}>
         <span style={{ fontSize: 12, color: '#fff', display: 'block', marginBottom: 5 }}>Arka Plan Resmi:</span>
         <input type="file" accept="image/*" onChange={handleImageUpload} style={{ fontSize: 11, color: '#ccc' }} />
@@ -68,7 +86,6 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
 
       <button onClick={handleExport} style={{ padding: 10, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>{copied ? '✅ Kopyalandı!' : '📋 JSON Kopyala'}</button>
       
-      {/* 🆕 Yeni Seviye Ekle */}
       <button onClick={onAddNewLevel} style={{ padding: 10, background: '#8e44ad', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', marginTop: 10 }}>
         ➕ Yeni Seviye Olarak Kaydet
       </button>
