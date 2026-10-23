@@ -8,16 +8,17 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
     blueSpawn: { ...levelData.blueSpawn },
     pinkSpawn: { ...levelData.pinkSpawn },
     players: [
-      { color: characters.p1, x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1 },
-      { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1 }
+      { color: characters.p1, x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1, isConnected: true },
+      { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1, isConnected: false } // 🆕 Başlangıçta bağlı değil
     ],
-    platformChanged: null, // 🆕 Platform rengi değişince ağa haber vermek için
+    platformChanged: null,
   };
 }
 
 export function updateRemotePlayer(state, remoteData) {
   const remotePlayer = state.players[1]; 
   if (remotePlayer) {
+    remotePlayer.isConnected = true; // 🆕 Veri geldiğinde bağlı yap
     remotePlayer.x += (remoteData.x - remotePlayer.x) * 0.5;
     remotePlayer.y += (remoteData.y - remotePlayer.y) * 0.5;
     remotePlayer.vx = remoteData.vx;
@@ -30,14 +31,11 @@ export function updateRemotePlayer(state, remoteData) {
 
 function checkCollision(p, plat) {
   return (
-    p.x < plat.x + plat.w &&
-    p.x + p.w > plat.x &&
-    p.y < plat.y + plat.h &&
-    p.y + p.h > plat.y
+    p.x < plat.x + plat.w && p.x + p.w > plat.x &&
+    p.y < plat.y + plat.h && p.y + p.h > plat.y
   );
 }
 
-// 🆕 Çarpışma Kontrolü (Düzeltildi: Nötr veya kendi rengiyse katıdır)
 function isSolid(playerColor, plat) {
   if (plat.color === 'platformNeutral') return true;
   if (plat.color === playerColor) return true;
@@ -48,7 +46,7 @@ function handleColorChange(plat, p, state) {
   if (plat.changeable && plat.color !== p.color) {
     plat.color = p.color;
     plat.flashUntil = state.time + 0.25;
-    state.platformChanged = { index: state.platforms.indexOf(plat), color: p.color }; // Ağa gönderilecek
+    state.platformChanged = { index: state.platforms.indexOf(plat), color: p.color };
   }
 }
 
@@ -58,7 +56,6 @@ export function update(state, keys, dt) {
 
   const p = state.players[0]; 
   
-  // --- 1. YATAY HAREKET (X Ekseni) ---
   let moveX = 0;
   if (keys[p.controls.left]) moveX -= 1;
   if (keys[p.controls.right]) moveX += 1;
@@ -71,7 +68,6 @@ export function update(state, keys, dt) {
 
   p.x += p.vx * dt;
 
-  // X Ekseni Çarpışma (Sadece Duvarlar için)
   for (const plat of state.platforms) {
     if (plat.isWall && isSolid(p.color, plat) && checkCollision(p, plat)) {
       if (p.vx > 0) p.x = plat.x - p.w; 
@@ -81,7 +77,6 @@ export function update(state, keys, dt) {
     }
   }
 
-  // --- 2. DİKEY HAREKET (Y Ekseni) ---
   if (keys[p.controls.jump] && p.grounded) {
     p.vy = -p.jumpSpeed;
     p.grounded = false;
@@ -92,12 +87,9 @@ export function update(state, keys, dt) {
   p.y += p.vy * dt;
   p.grounded = false;
 
-  // Y Ekseni Çarpışma
   for (const plat of state.platforms) {
     if (isSolid(p.color, plat) && checkCollision(p, plat)) {
-      
       if (plat.isWall) {
-        // Duvarlar her yönden katı
         if (p.vy > 0 && prevY + p.h <= plat.y + 10) { 
           p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
           handleColorChange(plat, p, state);
@@ -106,7 +98,6 @@ export function update(state, keys, dt) {
           handleColorChange(plat, p, state);
         }
       } else {
-        // Normal platformlar sadece yukarıdan inildiğinde katı
         if (p.vy >= 0 && prevY + p.h <= plat.y + 5) {
           p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
           handleColorChange(plat, p, state);
@@ -115,7 +106,6 @@ export function update(state, keys, dt) {
     }
   }
 
-  // Ekran Sınırları
   if (p.x < 0) p.x = 0;
   if (p.x + p.w > WIDTH) p.x = WIDTH - p.w;
 
@@ -124,7 +114,6 @@ export function update(state, keys, dt) {
     state.restartTime = state.time;
   }
 
-  // Hedef Kontrolü
   const goal = state.platforms.find(p => p.isGoal);
   if (goal) {
     const bothOnGoal = state.players.every(p => 

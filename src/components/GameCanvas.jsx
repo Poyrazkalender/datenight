@@ -6,7 +6,8 @@ import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
 import { LEVELS } from '../game/levels';
 
-export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
+// 🆕 customColor prop olarak eklendi
+export default function GameCanvas({ isEditing, selectedTool, customColor, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
@@ -65,7 +66,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       } else if (data.type === 'exit') {
         onExit();
       } else if (data.type === 'platform-change') {
-        // 🆕 Karşı taraftan gelen renk değişimini uygula
         stateRef.current.platforms[data.index].color = data.color;
       }
     };
@@ -138,7 +138,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
             keysRef.current = {}; 
           }
         } else if (!state.levelComplete) {
-          // 🆕 Platform değiştiyse ağa gönder
           if (gameEventActionRef.current && roomId && state.platformChanged) {
             gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
             state.platformChanged = null;
@@ -275,6 +274,11 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = true;
     } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') {
       newPlatform.color = selectedTool; newPlatform.changeable = false; newPlatform.isWall = false;
+    }
+
+    // 🆕 DOM sorgusu yerine prop kullanılıyor
+    if (newPlatform.color === 'platformNeutral') {
+        newPlatform.customColor = customColor; 
     }
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
