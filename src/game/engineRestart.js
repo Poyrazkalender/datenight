@@ -43,11 +43,16 @@ function checkCollision(p, plat) {
 }
 
 function isSolid(playerColor, plat) {
-  // 🆕 Uzaktan kumandalı platform: Sadece butona basıldığında katıdır.
+  // 🆕 Uzaktan kumandalı platform
   if (plat.isRemote) {
-    return plat.isActive === true;
+    if (!plat.isActive) return false; // Aktif değilse içinden geçilir (hayalet)
+    
+    // Aktifse rengine göre davranır (normal platformlar gibi)
+    if (plat.color === 'platformNeutral') return true; 
+    return plat.color === playerColor; 
   }
-  
+
+  // Normal platform ve duvarlar
   if (plat.color === 'platformNeutral') return true; 
   if (plat.color === playerColor) return true; 
   return false; 
