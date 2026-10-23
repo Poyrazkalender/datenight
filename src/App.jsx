@@ -11,7 +11,7 @@ export default function App() {
   
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [customColor, setCustomColor] = useState('#ff5733');
-  const [customSprite, setCustomSprite] = useState(null); // 🆕 Sprite State'i
+  const [customSprite, setCustomSprite] = useState(null);
   
   const [levelsList, setLevelsList] = useState(INITIAL_LEVELS);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
@@ -41,12 +41,7 @@ export default function App() {
   };
 
   const handleExportJSON = () => {
-    const json = JSON.stringify({ 
-      platforms: levelData.platforms, 
-      blueSpawn: levelData.blueSpawn, 
-      pinkSpawn: levelData.pinkSpawn, 
-      backgroundImage: levelData.backgroundImage || null 
-    }, null, 2);
+    const json = JSON.stringify({ platforms: levelData.platforms, blueSpawn: levelData.blueSpawn, pinkSpawn: levelData.pinkSpawn, backgroundImage: levelData.backgroundImage || null }, null, 2);
     navigator.clipboard.writeText(json);
   };
 
@@ -85,14 +80,13 @@ export default function App() {
           <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4 }}>
             {levelsList.map((_, index) => <option key={index} value={index}>Sev {index + 1}</option>)}
           </select>
-          <button onClick={() => setIsTesting(!isTesting)} style={{ padding: '10px 15px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
+          <button onClick={() => setIsTesting(!isTesting)} style={{ padding: '10px 15px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
-          <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 15px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 MENÜ</button>
+          <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 15px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>🏠 MENÜ</button>
         </div>
 
-        {/* 🆕 MOBİL İÇİN FLEX COLUMN, PC İÇİN ROW */}
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: 20, width: '100%', padding: '0 10px', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: 20, width: '100%', padding: '0 10px' }}>
           <GameCanvas 
             isEditing={!isTesting} 
             selectedTool={selectedTool} 
@@ -100,7 +94,7 @@ export default function App() {
             customSprite={customSprite}
             levelData={levelData} 
             onLevelChange={setLevelData} 
-            isMobile={isMobile} 
+            isMobile={isMobile} // 🆕 Mobilde joystick çıkması için eklendi
             characters={characters} 
             roomId={null} 
             currentLevelIndex={0} 

@@ -55,13 +55,9 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
 
     syncAction.onMessage = (data) => {
       if (data.type === 'request') {
-        if (stateRef.current) {
-          syncAction.send({ type: 'response', platforms: stateRef.current.platforms });
-        }
+        if (stateRef.current) syncAction.send({ type: 'response', platforms: stateRef.current.platforms });
       } else if (data.type === 'response') {
-        if (data.platforms && stateRef.current) {
-          stateRef.current.platforms = data.platforms;
-        }
+        if (data.platforms && stateRef.current) stateRef.current.platforms = data.platforms;
       }
     };
 
@@ -86,8 +82,6 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
       } else if (data.type === 'platform-change') {
         stateRef.current.platforms[data.index].color = data.color;
         stateRef.current.platforms[data.index].customColor = null;
-      } else if (data.type === 'button-change' || data.type === 'timer-change') {
-        // Ağ üzerinden buton/zamanlayıcı tetiği alındığında sonraki frame update()'de işlenecek
       }
     };
 
@@ -147,14 +141,6 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
           setIsComplete(true);
         }
 
-        // 🆕 Buton veya Timer değişimi ağa yolla
-        if (gameEventActionRef.current && roomId && state.buttonStateChanged) {
-          gameEventActionRef.current.send({ 
-            type: state.buttonStateChanged.type === 'timer' ? 'timer-change' : 'button-change' 
-          });
-          state.buttonStateChanged = null;
-        }
-
         if (state.restartRequested) {
           if (!hasPublishedRestart.current) {
             hasPublishedRestart.current = true;
@@ -169,11 +155,7 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
           }
         } else if (!state.levelComplete) {
           if (gameEventActionRef.current && roomId && state.platformChanged) {
-            gameEventActionRef.current.send({ 
-              type: 'platform-change', 
-              index: state.platformChanged.index, 
-              color: state.platformChanged.color 
-            });
+            gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
             state.platformChanged = null;
           }
 
@@ -256,18 +238,16 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
     const scaleY = canvasRef.current.height / rect.height;
-    const x = Math.floor(((e.clientX - rect.left) * scaleX) / 20) * 20;
-    const y = Math.floor(((e.clientY - rect.top) * scaleY) / 20) * 20;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = Math.floor(((clientX - rect.left) * scaleX) / 20) * 20;
+    const y = Math.floor(((clientY - rect.top) * scaleY) / 20) * 20;
     return { x, y };
   };
 
-  // 🆕 MOBİL VE FARE İÇİN ORTAK DOKUNMATİK ÇİZİM KONTROLLERİ
-  const handlePointerDown = (e) => {
+  const onPointerDown = (e) => {
     if (!isEditing) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const { x, y } = getGridCoords({ clientX, clientY });
-    
+    const { x, y } = getGridCoords(e);
     if (selectedTool === 'delete') {
       const newPlatforms = levelData.platforms.filter(p => 
         !(x >= p.x - 10 && x <= p.x + p.w + 10 && y >= p.y - 10 && y <= p.y + p.h + 10)
@@ -289,14 +269,12 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     setDrawCurrent({ x, y });
   };
 
-  const handlePointerMove = (e) => {
+  const onPointerMove = (e) => {
     if (!isEditing || !drawStart) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    setDrawCurrent(getGridCoords({ clientX, clientY }));
+    setDrawCurrent(getGridCoords(e));
   };
 
-  const handlePointerUp = () => {
+  const onPointerUp = () => {
     if (!isEditing || !drawStart || !drawCurrent) return;
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
@@ -304,66 +282,62 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     const h = Math.max(20, Math.abs(drawCurrent.y - drawStart.y));
     const newPlatform = { x, y, w, h, brackets: true };
     
-    // Araç özellikleri atama
-    if (selectedTool === 'changeable') { 
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = false; 
-    } else if (selectedTool === 'wallChangeable') { 
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = true; 
-    } else if (selectedTool === 'platformNeutral') { 
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = false; 
-    } else if (selectedTool === 'wallNeutral') { 
-      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = true; 
-    } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') { 
-      newPlatform.color = selectedTool; newPlatform.changeable = false; newPlatform.isWall = false; 
-    }
-    
-    // 🆕 Yeni Eklenen Araç Tipleri
-    else if (selectedTool === 'platformTimer') { 
-      newPlatform.isTimer = true; newPlatform.color = 'platformBlue'; newPlatform.isWall = false; 
-    } else if (selectedTool === 'platformRemote') { 
-      newPlatform.isRemote = true; newPlatform.color = 'platformNeutral'; newPlatform.isWall = false; 
-    } else if (selectedTool === 'buttonBlue') { 
-      newPlatform.isButtonBlue = true; newPlatform.color = 'platformBlue'; newPlatform.isWall = false; 
-    } else if (selectedTool === 'buttonPink') { 
-      newPlatform.isButtonPink = true; newPlatform.color = 'platformPink'; newPlatform.isWall = false; 
+    if (selectedTool === 'changeable') {
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = false;
+    } else if (selectedTool === 'wallChangeable') {
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = true;
+    } else if (selectedTool === 'platformNeutral') {
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = false;
+    } else if (selectedTool === 'wallNeutral') {
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = true;
+    } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') {
+      newPlatform.color = selectedTool; newPlatform.changeable = false; newPlatform.isWall = false;
+    } else if (selectedTool === 'platformTimer') {
+      newPlatform.isTimer = true; newPlatform.color = 'platformBlue'; newPlatform.isWall = false;
+    } else if (selectedTool === 'platformRemote') {
+      newPlatform.isRemote = true; newPlatform.color = 'platformNeutral'; newPlatform.isWall = false;
+    } else if (selectedTool === 'buttonBlue') {
+      newPlatform.isButtonBlue = true; newPlatform.color = 'platformBlue'; newPlatform.isWall = false;
+    } else if (selectedTool === 'buttonPink') {
+      newPlatform.isButtonPink = true; newPlatform.color = 'platformPink'; newPlatform.isWall = false;
     }
 
-    if (newPlatform.color === 'platformNeutral' && !newPlatform.isRemote) {
+    if (newPlatform.color === 'platformNeutral') {
       newPlatform.customColor = customColor; 
     }
-
-    if (customSprite) {
-      newPlatform.sprite = customSprite;
-    }
+    if (customSprite) newPlatform.sprite = customSprite;
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);
     setDrawCurrent(null);
   };
 
+  const handleTouchKey = (key, isPressed) => {
+    keysRef.current[key] = isPressed;
+  };
+
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: WIDTH, display: 'flex', justifyContent: 'center', touchAction: 'none' }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: WIDTH, display: 'flex', justifyContent: 'center' }}>
       <canvas 
         ref={canvasRef} 
         width={WIDTH} 
         height={HEIGHT} 
-        onMouseDown={handlePointerDown}
-        onMouseMove={handlePointerMove}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={handlePointerUp}
-        onTouchStart={handlePointerDown} // 🆕 Mobil Dokunmatik Çizim
-        onTouchMove={handlePointerMove}  // 🆕 Mobil Dokunmatik Çizim
-        onTouchEnd={handlePointerUp}     // 🆕 Mobil Dokunmatik Çizim
+        onMouseDown={onPointerDown}
+        onMouseMove={onPointerMove}
+        onMouseUp={onPointerUp}
+        onMouseLeave={onPointerUp}
+        onTouchStart={onPointerDown}
+        onTouchMove={onPointerMove}
+        onTouchEnd={onPointerUp}
         style={{ 
           border: '4px solid #111', borderRadius: 8, boxShadow: '0 0 30px rgba(0,0,0,0.8)',
           imageRendering: 'pixelated', cursor: isEditing ? 'crosshair' : 'default',
-          width: '100%', height: 'auto'
+          width: '100%', height: 'auto', touchAction: 'none'
         }} 
       />
       
-      {!isEditing && isMobile && (
-        <TouchControls onKeyChange={(key, isPressed) => keysRef.current[key] = isPressed} />
-      )}
+      {/* 🆕 Test veya Oyun modunda mobilde joystick görünür */}
+      {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} />}
 
       {isComplete && !isEditing && (
         <div style={{
