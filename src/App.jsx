@@ -12,13 +12,16 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [customColor, setCustomColor] = useState('#ff5733');
   
-  // 🆕 Seviyeleri State olarak tutuyoruz
+  // 🆕 Seviyeler dinamik hale getirildi
   const [levelsList, setLevelsList] = useState(INITIAL_LEVELS);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
 
   useEffect(() => {
-    setLevelData(levelsList[currentLevelIndex]);
+    // Seviye indeksi değiştiğinde veya yeni seviye eklendiğinde veriyi güncelle
+    if (levelsList[currentLevelIndex]) {
+      setLevelData(levelsList[currentLevelIndex]);
+    }
   }, [currentLevelIndex, levelsList]);
 
   const startGame = (mobileMode) => {
@@ -32,17 +35,19 @@ export default function App() {
 
   // 🆕 Yeni Seviye Ekleme
   const handleAddNewLevel = () => {
-    const newLevels = [...levelsList, JSON.parse(JSON.stringify(levelData))]; // Derin kopya
+    const newLevels = [...levelsList, JSON.parse(JSON.stringify(levelData))]; 
     setLevelsList(newLevels);
     setCurrentLevelIndex(newLevels.length - 1);
     alert("Seviye listeye eklendi! Kalıcı yapmak için JSON'u kopyalayıp src/game/levels.js dosyasına yapıştırın.");
   };
 
+  // 🆕 JSON Dışa Aktarma
   const handleExportJSON = () => {
     const json = JSON.stringify({ platforms: levelData.platforms, blueSpawn: levelData.blueSpawn, pinkSpawn: levelData.pinkSpawn, backgroundImage: levelData.backgroundImage || null }, null, 2);
     navigator.clipboard.writeText(json);
   };
 
+  // --- MENÜ EKRANI ---
   if (screen === 'menu') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff' }}>
@@ -70,6 +75,7 @@ export default function App() {
     );
   }
 
+  // --- EDİTÖR EKRANI ---
   if (screen === 'editor') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
@@ -98,6 +104,7 @@ export default function App() {
     );
   }
 
+  // --- OYUN EKRANI ---
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
