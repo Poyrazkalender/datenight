@@ -75,16 +75,23 @@ export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = fal
       if (plat.isButtonPink && checkCollision(p, plat)) pinkBtnPressed = true;
     }
   }
+    // Uzaktan kumandalı platformları güncelle
   let remoteChanged = false;
   for (const plat of state.platforms) {
     if (plat.isRemote) {
-      let targetColor = null;
-      if (blueBtnPressed) targetColor = 'platformBlue';
-      if (pinkBtnPressed) targetColor = 'platformPink';
-      if (targetColor && plat.color !== targetColor) { plat.color = targetColor; remoteChanged = true; }
+      // 🆕 Butona basılıysa mavi/pembe, basılı değilse nötr renk al
+      let targetColor = blueBtnPressed ? 'platformBlue' : pinkBtnPressed ? 'platformPink' : 'platformNeutral';
+      
+      if (plat.color !== targetColor || plat.customColor) {
+        plat.color = targetColor;
+        plat.customColor = null; // 🆕 Editörde atanan özel rengi sil ki buton rengi görünsün
+        remoteChanged = true;
+      }
     }
   }
-  if (remoteChanged) state.buttonStateChanged = { type: 'remote' };
+  if (remoteChanged) {
+    state.buttonStateChanged = { type: 'remote' };
+  }
 
   // 🆕 TEST MODUNDA DİĞER OYUNCUYA YERÇEKİMİ UYGULA
   if (isTesting) {
