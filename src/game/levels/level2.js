@@ -27,6 +27,17 @@ export const level2 =
       "color": "platformNeutral",
       "isGoal": true,
       "brackets": true
+    },
+    {
+      "x": 320,
+      "y": 320,
+      "w": 40,
+      "h": 160,
+      "brackets": true,
+      "color": "platformNeutral",
+      "changeable": true,
+      "isWall": true,
+      "customColor": "#ff5733"
     }
   ],
   "blueSpawn": {
@@ -36,5 +47,6 @@ export const level2 =
   "pinkSpawn": {
     "x": 220,
     "y": 360
-  }
+  },
+  "backgroundImage": null
 }
