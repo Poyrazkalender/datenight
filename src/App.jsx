@@ -5,7 +5,15 @@ import { LEVELS as INITIAL_LEVELS } from './game/levels';
 
 export default function App() {
   const [screen, setScreen] = useState('menu'); 
-  const [isMobile, setIsMobile] = useState(false);
+  
+  // 🆕 OTOMATİK MOBİL ALGILAMA
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 1024 || navigator.maxTouchPoints > 0;
+    }
+    return false;
+  });
+
   const [characters, setCharacters] = useState({ p1: 'platformBlue', p2: 'platformPink' });
   const [roomId, setRoomId] = useState('');
   
@@ -17,6 +25,15 @@ export default function App() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
   const [isTesting, setIsTesting] = useState(false);
+
+  // 🆕 Ekran boyutu değiştiğinde mobil durumunu güncelle
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 1024 || navigator.maxTouchPoints > 0);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (levelsList[currentLevelIndex]) {
@@ -94,7 +111,7 @@ export default function App() {
             customSprite={customSprite}
             levelData={levelData} 
             onLevelChange={setLevelData} 
-            isMobile={isMobile} // 🆕 Mobilde joystick çıkması için eklendi
+            isMobile={isMobile} // 🆕 Otomatik algılanan değer gönderiliyor
             characters={characters} 
             roomId={null} 
             currentLevelIndex={0} 
