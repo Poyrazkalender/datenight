@@ -36,17 +36,16 @@ function checkCollision(p, plat) {
   );
 }
 
-// 🆕 DÜZELTİLDİ: Değişken duvar, oyuncuyla aynı renkse içinden geçilir (false döner)
 function isSolid(playerColor, plat) {
-  if (plat.color === 'platformNeutral') return true; // Nötr her zaman katı
-  if (plat.color === playerColor) return false; // Kendi rengindeyse geç
-  return true; // Farklı renkteyse katı
+  if (plat.color === 'platformNeutral') return true;
+  if (plat.color === playerColor) return true;
+  return false;
 }
 
 function handleColorChange(plat, p, state) {
   if (plat.changeable && plat.color !== p.color) {
     plat.color = p.color;
-    plat.customColor = null;
+    plat.customColor = null; // 🆕 Özel rengi sıfırla ki oyuncunun rengi görünsün
     plat.flashUntil = state.time + 0.25;
     state.platformChanged = { index: state.platforms.indexOf(plat), color: p.color };
   }
@@ -118,9 +117,10 @@ export function update(state, keys, dt) {
 
   const goal = state.platforms.find(p => p.isGoal);
   if (goal) {
-    // 🆕 DÜZELTİLDİ: grounded şartı kaldırıldı, tolerans artırıldı. İki oyuncu da alandaysa biter.
+    // 🆕 Her iki oyuncunun da hedefte olması gerekiyor
     const bothOnGoal = state.players.every(p => 
-      Math.abs((p.y + p.h) - goal.y) < 15 && 
+      p.grounded && 
+      Math.abs((p.y + p.h) - goal.y) < 5 && 
       p.x + p.w > goal.x && p.x < goal.x + goal.w
     );
     if (bothOnGoal) state.levelComplete = true;
