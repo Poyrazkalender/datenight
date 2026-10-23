@@ -24,7 +24,7 @@ export default function App() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
   const [isTesting, setIsTesting] = useState(false);
-  const [testPlayer, setTestPlayer] = useState('P1'); // 🆕 Test edilecek oyuncu
+  const [testPlayer, setTestPlayer] = useState('P1'); // Test edilecek oyuncu
 
   useEffect(() => {
     const handleResize = () => {
@@ -100,7 +100,7 @@ export default function App() {
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
           
-          {/* 🆕 TEST EDİLECEK KARAKTER SEÇİMİ (Sadece Test Modunda Görünür) */}
+          {/* Test Modunda Karakter Seçimi */}
           {isTesting && isMobile && (
             <div style={{ display: 'flex', gap: 5 }}>
               <button onClick={() => setTestPlayer('P1')} style={{ padding: '10px 15px', background: testPlayer === 'P1' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>Mavi (P1)</button>
@@ -114,15 +114,16 @@ export default function App() {
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: 20, width: '100%', padding: '0 10px' }}>
           <GameCanvas 
             isEditing={!isTesting} 
-            isTesting={isTesting} // 🆕 Test modu GameCanvas'a iletiliyor
-            controlledPlayer={testPlayer} // 🆕 Seçilen oyuncu iletiliyor
+            isTesting={isTesting} 
+            controlledPlayer={testPlayer} 
             selectedTool={selectedTool} 
             customColor={customColor} 
             customSprite={customSprite}
             levelData={levelData} 
             onLevelChange={setLevelData} 
             isMobile={isMobile} 
-            characters={characters} 
+            // Editörde karakterler sabit, ana menü seçimi karışmaz.
+            characters={{ p1: 'platformBlue', p2: 'platformPink' }} 
             roomId={null} 
             currentLevelIndex={0} 
             setCurrentLevelIndex={() => {}} 

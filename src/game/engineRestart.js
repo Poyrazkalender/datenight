@@ -1,7 +1,6 @@
 import { GRAVITY, WIDTH, HEIGHT } from './constants';
 import { LEVELS } from './levels';
 
-// 🆕 forceP2Active parametresi eklendi
 export function createState(levelData = LEVELS[0], characters = { p1: 'platformBlue', p2: 'platformPink' }, forceP2Active = false) {
   return {
     time: 0, levelComplete: false, completedAt: 0, restartRequested: false, restartTime: 0,
@@ -53,61 +52,64 @@ function handleColorChange(plat, p, state) {
   }
 }
 
-export function update(state, keys, dt) {
+// 🆕 Fonksiyon controlledPlayer ve isTesting parametrelerini alıyor
+export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = false) {
   state.time += dt;
   if (state.levelComplete || state.restartRequested) return;
 
-  // 🆕 ZAMANLAYICI PLATFORMLAR (Timer)
+  // Zamanlayıcı ve Buton mantığı (Değişmedi)
   let timerStateChanged = false;
   for (const plat of state.platforms) {
     if (plat.isTimer) {
-      // Her 3 saniyede bir renk değiştirir
       const cycle = Math.floor(state.time / 3) % 2; 
       const newColor = cycle === 0 ? 'platformBlue' : 'platformPink';
-      if (plat.color !== newColor) {
-        plat.color = newColor;
-        timerStateChanged = true;
-      }
+      if (plat.color !== newColor) { plat.color = newColor; timerStateChanged = true; }
     }
   }
-  // Timer değişimini ağa yolla (Sadece state değiştiyse)
-  if (timerStateChanged) {
-    state.buttonStateChanged = { type: 'timer' }; 
-  }
+  if (timerStateChanged) state.buttonStateChanged = { type: 'timer' }; 
 
-  // 🆕 BUTONLARI KONTROL ET
-  let blueBtnPressed = false;
-  let pinkBtnPressed = false;
-  
+  let blueBtnPressed = false; let pinkBtnPressed = false;
   for (const p of state.players) {
-    // Eğer oyuncu (veya ağdan gelen P2) butona değiyorsa
     for (const plat of state.platforms) {
       if (plat.isButtonBlue && checkCollision(p, plat)) blueBtnPressed = true;
       if (plat.isButtonPink && checkCollision(p, plat)) pinkBtnPressed = true;
     }
   }
-
-  // Uzaktan kumandalı platformları güncelle
   let remoteChanged = false;
   for (const plat of state.platforms) {
     if (plat.isRemote) {
       let targetColor = null;
       if (blueBtnPressed) targetColor = 'platformBlue';
       if (pinkBtnPressed) targetColor = 'platformPink';
-      
-      if (targetColor && plat.color !== targetColor) {
-        plat.color = targetColor;
-        remoteChanged = true;
+      if (targetColor && plat.color !== targetColor) { plat.color = targetColor; remoteChanged = true; }
+    }
+  }
+  if (remoteChanged) state.buttonStateChanged = { type: 'remote' };
+
+  // 🆕 TEST MODUNDA DİĞER OYUNCUYA YERÇEKİMİ UYGULA
+  if (isTesting) {
+    const otherIndex = controlledPlayer === 'P1' ? 1 : 0;
+    const otherP = state.players[otherIndex];
+    if (!otherP.grounded) {
+      otherP.vy += GRAVITY * dt;
+      const prevY = otherP.y;
+      otherP.y += otherP.vy * dt;
+      for (const plat of state.platforms) {
+        if (!plat.isButtonBlue && !plat.isButtonPink && isSolid(otherP.color, plat) && checkCollision(otherP, plat)) {
+          if (plat.isWall) {
+             if (otherP.vy > 0 && prevY + otherP.h <= plat.y + 10) { otherP.y = plat.y - otherP.h; otherP.vy = 0; otherP.grounded = true; }
+          } else {
+             if (otherP.vy >= 0 && prevY + otherP.h <= plat.y + 5) { otherP.y = plat.y - otherP.h; otherP.vy = 0; otherP.grounded = true; }
+          }
+        }
       }
     }
   }
-  if (remoteChanged) {
-    state.buttonStateChanged = { type: 'remote' };
-  }
 
-  const p = state.players[0]; 
+  // 🆕 HANGİ OYUNCU KONTROL EDİLİYORSA ONU HAREKET ETTİR
+  const activeIndex = controlledPlayer === 'P2' ? 1 : 0;
+  const p = state.players[activeIndex]; 
   
-  // --- 1. YATAY HAREKET (X Ekseni) ---
   let moveX = 0;
   if (keys[p.controls.left]) moveX -= 1;
   if (keys[p.controls.right]) moveX += 1;
@@ -129,7 +131,6 @@ export function update(state, keys, dt) {
     }
   }
 
-  // --- 2. DİKEY HAREKET (Y Ekseni) ---
   if (keys[p.controls.jump] && p.grounded) {
     p.vy = -p.jumpSpeed;
     p.grounded = false;

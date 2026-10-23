@@ -41,7 +41,6 @@ export default function GameCanvas({
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    // 🆕 isTesting true ise P2'yi zorla aktif et
     stateRef.current = createState(levelData, characters, isTesting);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
@@ -151,7 +150,8 @@ export default function GameCanvas({
       const state = stateRef.current;
 
       if (!isEditing) {
-        update(state, keysRef.current, dt);
+        // controlledPlayer ve isTesting parametreleri aktarılıyor
+        update(state, keysRef.current, dt, controlledPlayer, isTesting);
 
         if (state.levelComplete && !isComplete) {
           setIsComplete(true);
@@ -177,15 +177,17 @@ export default function GameCanvas({
 
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
-            playerStateActionRef.current.send({
-              color: myPlayer.color,
-              x: myPlayer.x,
-              y: myPlayer.y,
-              vx: myPlayer.vx,
-              vy: myPlayer.vy,
-              facing: myPlayer.facing,
-              grounded: myPlayer.grounded,
-            });
+            if (myPlayer) {
+              playerStateActionRef.current.send({
+                color: myPlayer.color,
+                x: myPlayer.x,
+                y: myPlayer.y,
+                vx: myPlayer.vx,
+                vy: myPlayer.vy,
+                facing: myPlayer.facing,
+                grounded: myPlayer.grounded,
+              });
+            }
             lastPublishedTime.current = time;
           }
 
@@ -226,7 +228,7 @@ export default function GameCanvas({
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete, isTesting]);
+  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete, controlledPlayer, isTesting]);
 
   const handleNextLevel = () => {
     const nextIndex = currentLevelIndex + 1;
@@ -240,8 +242,10 @@ export default function GameCanvas({
 
   const handleRestartLevel = () => {
     if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
-    stateRef.current.restartRequested = true;
-    stateRef.current.restartTime = stateRef.current.time;
+    if (stateRef.current) {
+      stateRef.current.restartRequested = true;
+      stateRef.current.restartTime = stateRef.current.time;
+    }
     setIsComplete(false);
   };
 
@@ -332,7 +336,6 @@ export default function GameCanvas({
     keysRef.current[key] = isPressed;
   };
 
-  // 🆕 Mobilde kontrol edilecek karakterin tuş setini belirle
   const activeControls = controlledPlayer === 'P2' 
     ? { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp' } 
     : { left: 'KeyA', right: 'KeyD', jump: 'KeyW' };
@@ -357,7 +360,6 @@ export default function GameCanvas({
         }} 
       />
       
-      {/* 🆕 Test veya Oyun modunda mobilde joystick görünür ve doğru tuşları gönderir */}
       {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} keys={activeControls} />}
 
       {isComplete && !isEditing && (
