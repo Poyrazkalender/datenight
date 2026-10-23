@@ -36,16 +36,17 @@ function checkCollision(p, plat) {
   );
 }
 
+// 🆕 TEK KURAL: Nötr veya kendi rengindeyse katıdır. (Hem zemin hem duvar için geçerli)
 function isSolid(playerColor, plat) {
-  if (plat.color === 'platformNeutral') return true;
-  if (plat.color === playerColor) return true;
-  return false;
+  if (plat.color === 'platformNeutral') return true; 
+  if (plat.color === playerColor) return true; 
+  return false; 
 }
 
 function handleColorChange(plat, p, state) {
   if (plat.changeable && plat.color !== p.color) {
     plat.color = p.color;
-    plat.customColor = null; // 🆕 Özel rengi sıfırla ki oyuncunun rengi görünsün
+    plat.customColor = null;
     plat.flashUntil = state.time + 0.25;
     state.platformChanged = { index: state.platforms.indexOf(plat), color: p.color };
   }
@@ -57,6 +58,7 @@ export function update(state, keys, dt) {
 
   const p = state.players[0]; 
   
+  // --- 1. YATAY HAREKET (X Ekseni) ---
   let moveX = 0;
   if (keys[p.controls.left]) moveX -= 1;
   if (keys[p.controls.right]) moveX += 1;
@@ -69,6 +71,7 @@ export function update(state, keys, dt) {
 
   p.x += p.vx * dt;
 
+  // X Ekseni Çarpışma (Sadece Duvarlar için yatayda durdurma)
   for (const plat of state.platforms) {
     if (plat.isWall && isSolid(p.color, plat) && checkCollision(p, plat)) {
       if (p.vx > 0) p.x = plat.x - p.w; 
@@ -78,6 +81,7 @@ export function update(state, keys, dt) {
     }
   }
 
+  // --- 2. DİKEY HAREKET (Y Ekseni) ---
   if (keys[p.controls.jump] && p.grounded) {
     p.vy = -p.jumpSpeed;
     p.grounded = false;
@@ -88,9 +92,11 @@ export function update(state, keys, dt) {
   p.y += p.vy * dt;
   p.grounded = false;
 
+  // Y Ekseni Çarpışma (Zeminler ve Duvarlar için)
   for (const plat of state.platforms) {
     if (isSolid(p.color, plat) && checkCollision(p, plat)) {
       if (plat.isWall) {
+        // Duvarlar her yönden katı
         if (p.vy > 0 && prevY + p.h <= plat.y + 10) { 
           p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
           handleColorChange(plat, p, state);
@@ -99,6 +105,7 @@ export function update(state, keys, dt) {
           handleColorChange(plat, p, state);
         }
       } else {
+        // Zeminler sadece üstüne basıldığında katı
         if (p.vy >= 0 && prevY + p.h <= plat.y + 5) {
           p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
           handleColorChange(plat, p, state);
@@ -117,10 +124,9 @@ export function update(state, keys, dt) {
 
   const goal = state.platforms.find(p => p.isGoal);
   if (goal) {
-    // 🆕 Her iki oyuncunun da hedefte olması gerekiyor
+    // İki oyuncu da hedefteyse bitir
     const bothOnGoal = state.players.every(p => 
-      p.grounded && 
-      Math.abs((p.y + p.h) - goal.y) < 5 && 
+      Math.abs((p.y + p.h) - goal.y) < 15 && 
       p.x + p.w > goal.x && p.x < goal.x + goal.w
     );
     if (bothOnGoal) state.levelComplete = true;
