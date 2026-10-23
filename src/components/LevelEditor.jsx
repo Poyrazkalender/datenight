@@ -4,8 +4,10 @@ export default function LevelEditor({ selectedTool, setSelectedTool, levelData, 
   const [copied, setCopied] = useState(false);
 
   const tools = [
-    { id: 'changeable', label: 'Değişken Platform', color: '#8a8aa8' },
-    { id: 'platformNeutral', label: 'Sabit Nötr', color: '#e67e22' },
+    { id: 'changeable', label: 'Değişken Zemin', color: '#8a8aa8' },
+    { id: 'wallChangeable', label: 'Değişken Duvar', color: '#a29bfe' }, // 🆕
+    { id: 'platformNeutral', label: 'Sabit Nötr Zemin', color: '#e67e22' },
+    { id: 'wallNeutral', label: 'Sabit Nötr Duvar', color: '#d35400' }, // 🆕
     { id: 'platformBlue', label: 'Sabit Mavi', color: '#00a7f8' },
     { id: 'platformPink', label: 'Sabit Pembe', color: '#e84393' },
     { id: 'goal', label: 'Hedef Koy', color: '#ff4757' },
@@ -22,8 +24,8 @@ export default function LevelEditor({ selectedTool, setSelectedTool, levelData, 
   };
 
   return (
-    <div style={{ width: 250, background: '#1a1a2e', padding: 20, borderRadius: 8, marginLeft: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <h3 style={{ margin: 0, color: '#fff', fontSize: 16 }}>Level Editör</h3>
+    <div style={{ width: 250, background: '#1a1a2e', padding: 20, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <h3 style={{ margin: 0, color: '#fff', fontSize: 16 }}>Araçlar</h3>
       
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
         {tools.map(t => (
@@ -41,15 +43,19 @@ export default function LevelEditor({ selectedTool, setSelectedTool, levelData, 
         ))}
       </div>
 
-      <hr style={{ borderColor: '#333', width: '100%' }} />
+      <hr style={{ borderColor: '#333', width: '100%', margin: '10px 0' }} />
 
-      <button onClick={() => setLevelData({ platforms: [], blueSpawn: { x: 100, y: 400 }, pinkSpawn: { x: 150, y: 400 } })} style={{ padding: 10, background: '#c0392b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+      <button onClick={() => setLevelData({ platforms: [], blueSpawn: { x: 100, y: 400 }, pinkSpawn: { x: 150, y: 400 } })} style={{ padding: 10, background: '#c0392b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>
         Sahneyi Temizle
       </button>
 
-      <button onClick={handleExport} style={{ padding: 10, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-        {copied ? 'Kopyalandı!' : 'JSON Kopyala'}
+      <button onClick={handleExport} style={{ padding: 10, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>
+        {copied ? '✅ Kopyalandı!' : '📋 JSON Kopyala'}
       </button>
+
+      <p style={{ fontSize: 11, color: '#888', margin: 0, marginTop: 10 }}>
+        * Kopyaladığın JSON'u <b>src/game/levels/levelX.js</b> dosyasına yapıştırarak kaydet.
+      </p>
     </div>
   );
 }

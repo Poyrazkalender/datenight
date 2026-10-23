@@ -4,11 +4,11 @@ import LevelEditor from './components/LevelEditor';
 import { LEVELS } from './game/levels';
 
 export default function App() {
-  const [screen, setScreen] = useState('menu');
+  const [screen, setScreen] = useState('menu'); // 'menu', 'game', 'editor'
   const [isMobile, setIsMobile] = useState(false);
   const [characters, setCharacters] = useState({ p1: 'platformBlue', p2: 'platformPink' });
   const [roomId, setRoomId] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(LEVELS[currentLevelIndex]);
@@ -26,6 +26,7 @@ export default function App() {
     setScreen('game');
   };
 
+  // --- MENÜ EKRANI ---
   if (screen === 'menu') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff' }}>
@@ -46,42 +47,64 @@ export default function App() {
             <button onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformBlue' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Mavi (P1)</button>
             <button onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformPink' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Pembe (P2)</button>
           </div>
-          <p style={{ fontSize: 12, color: '#888', marginTop: 15, maxWidth: 250 }}>*Online oynarken birbirinizle aynı rengi SEÇMEYİN.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: 20 }}>
+        <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
           <button onClick={() => startGame(false)} style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>💻 Bilgisayar</button>
           <button onClick={() => startGame(true)} style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📱 Mobil / Tablet</button>
+        </div>
+
+        {/* 🆕 EDİTÖR BUTONU */}
+        <button onClick={() => setScreen('editor')} style={{ padding: '15px 30px', fontSize: 18, background: '#f1c40f', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+          🛠 LEVEL EDİTÖRÜ
+        </button>
+      </div>
+    );
+  }
+
+  // --- EDİTÖR EKRANI ---
+  if (screen === 'editor') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15 }}>
+          <h1 style={{ margin: 0, color: '#f1c40f' }}>LEVEL EDİTÖRÜ</h1>
+          <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 ANA MENÜ</button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+          <GameCanvas 
+            isEditing={true} 
+            selectedTool={selectedTool} 
+            levelData={levelData} 
+            onLevelChange={setLevelData} 
+            isMobile={false} 
+            characters={characters} 
+            roomId={null} 
+            currentLevelIndex={0}
+            setCurrentLevelIndex={() => {}}
+            onExit={() => setScreen('menu')}
+          />
+          <LevelEditor selectedTool={selectedTool} setSelectedTool={setSelectedTool} levelData={levelData} setLevelData={setLevelData} />
         </div>
       </div>
     );
   }
 
+  // --- OYUN EKRANI ---
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
         <h1 style={{ margin: 0, letterSpacing: 2, color: '#e84393', textShadow: '0 0 10px #e84393' }}>LOVE GAME</h1>
-        
         <div style={{ padding: '8px 15px', background: '#1a1a2e', borderRadius: 4, border: '1px solid #3498db', color: '#3498db', fontWeight: 'bold' }}>Oda: {roomId}</div>
-
         <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4, fontWeight: 'bold' }}>
           {LEVELS.map((_, index) => <option key={index} value={index}>Seviye {index + 1}</option>)}
         </select>
-
-        <button onClick={() => setIsEditing(!isEditing)} style={{ padding: '10px 20px', background: isEditing ? '#f1c40f' : '#3498db', color: isEditing ? '#000' : '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
-          {isEditing ? '▶ OYNA' : '🛠 EDİTÖR'}
-        </button>
-
-        {/* Üstteki SONRAKİ SEVİYE butonu kaldırıldı */}
-
-        <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
-          🏠 MENÜ
-        </button>
+        <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 MENÜ</button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'center' }}>
         <GameCanvas 
-          isEditing={isEditing} 
+          isEditing={false} 
           selectedTool={selectedTool} 
           levelData={levelData} 
           onLevelChange={setLevelData} 
@@ -90,16 +113,8 @@ export default function App() {
           roomId={roomId} 
           currentLevelIndex={currentLevelIndex}
           setCurrentLevelIndex={setCurrentLevelIndex}
-          onExit={() => setScreen('menu')} // 🆕 Oyundan çıkış için
+          onExit={() => setScreen('menu')} 
         />
-        
-        {isEditing && (
-          <LevelEditor selectedTool={selectedTool} setSelectedTool={setSelectedTool} levelData={levelData} setLevelData={setLevelData} />
-        )}
-      </div>
-
-      <div style={{ marginTop: 15, color: '#888' }}>
-        {isEditing ? 'Fareyle tıkla ve sürükle -> Platform çiz.' : 'Kendi karakterini hareket ettir. (PC: A / D / W)'}
       </div>
     </div>
   );

@@ -57,6 +57,14 @@ function drawPlatforms(ctx, state) { /* Aynı kalacak */
         ctx.beginPath(); ctx.arc(bx + 2, plat.y + plat.h + 8, 3, 0, Math.PI * 2); ctx.fill();
       }
     }
+	// drawPlatforms içine ekle:
+    if (plat.isWall) {
+      // Duvarların üzerine ince dikey çizgiler çiz (tuğla hissi)
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      for(let i = plat.x + 10; i < plat.x + plat.w; i += 10) {
+         ctx.fillRect(i, plat.y, 2, plat.h);
+      }
+    }
   }
 }
 

@@ -256,19 +256,40 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     setDrawCurrent(getGridCoords(e));
   };
 
+  // Sadece mouseUp kısmını güncelliyoruz, diğer her şey aynı kalacak.
   const onMouseUp = () => {
     if (!isEditing || !drawStart || !drawCurrent) return;
+    
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
     const w = Math.max(20, Math.abs(drawCurrent.x - drawStart.x));
     const h = Math.max(20, Math.abs(drawCurrent.y - drawStart.y));
-    const newPlatform = { x, y, w, h, color: selectedTool, brackets: true };
-    if (['platformNeutral', 'platformBlue', 'platformPink'].includes(selectedTool)) {
-      newPlatform.changeable = false;
-    } else if (selectedTool === 'changeable') {
+
+    const newPlatform = { x, y, w, h, brackets: true };
+    
+    // 🆕 Yeni Araç Mantığı
+    if (selectedTool === 'changeable') {
       newPlatform.color = 'platformNeutral';
       newPlatform.changeable = true;
+      newPlatform.isWall = false;
+    } else if (selectedTool === 'wallChangeable') {
+      newPlatform.color = 'platformNeutral';
+      newPlatform.changeable = true;
+      newPlatform.isWall = true; // Duvar!
+    } else if (selectedTool === 'platformNeutral') {
+      newPlatform.color = 'platformNeutral';
+      newPlatform.changeable = false;
+      newPlatform.isWall = false;
+    } else if (selectedTool === 'wallNeutral') {
+      newPlatform.color = 'platformNeutral';
+      newPlatform.changeable = false;
+      newPlatform.isWall = true; // Sabit Nötr Duvar!
+    } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') {
+      newPlatform.color = selectedTool;
+      newPlatform.changeable = false;
+      newPlatform.isWall = false;
     }
+
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);
     setDrawCurrent(null);
