@@ -177,9 +177,5 @@ export function render(ctx, state, isEditing, drawStart, drawCurrent) {
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  if (state.levelComplete && !isEditing) {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 42px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('SEVİYE TAMAMLANDI', WIDTH / 2, HEIGHT / 2); ctx.textAlign = 'left';
-  }
+  
 }

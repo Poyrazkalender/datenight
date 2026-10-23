@@ -4,43 +4,45 @@ import { createState, update, updateRemotePlayer } from '../game/engineRestart';
 import { render } from '../game/renderer';
 import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
+import { LEVELS } from '../game/levels'; // 🆕 Level sayısına ulaşmak için
 
-export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex }) {
+export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
   const lastPublishedTime = useRef(0);
   const hasPublishedComplete = useRef(false);
   const hasPublishedRestart = useRef(false); 
-  const isRemoteLevelChange = useRef(false); // Karşıdan mı geldi kontrolü
+  const isRemoteLevelChange = useRef(false);
 
   const roomRef = useRef(null);
   const playerStateActionRef = useRef(null);
   const gameEventActionRef = useRef(null);
-  const levelActionRef = useRef(null); // 🆕 Seviye senkronizasyonu için
+  const levelActionRef = useRef(null);
 
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
+  
+  // 🆕 Oyun bitti mi ekranı için React State
+  const [isComplete, setIsComplete] = useState(false);
 
-  // State Başlat (Seviye değiştiğinde tuşları da sıfırla)
   useEffect(() => {
     stateRef.current = createState(levelData, characters);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
     keysRef.current = {}; 
+    setIsComplete(false); // Yeni seviyede menüyü kapat
   }, [levelData, characters]);
 
-  // Trystero Oda Bağlantısı
   useEffect(() => {
     if (!roomId || isEditing) return;
 
     const room = joinRoom({ appId: 'love-game' }, roomId);
     roomRef.current = room;
-    console.log(`🔗 Trystero odasına bağlanıldı: ${roomId}`);
 
     const playerStateAction = room.makeAction('player-state');
     const gameEventAction = room.makeAction('game-event');
-    const levelAction = room.makeAction('change-level'); // 🆕 Seviye değişim ağı
+    const levelAction = room.makeAction('change-level'); 
 
     playerStateActionRef.current = playerStateAction;
     gameEventActionRef.current = gameEventAction;
@@ -48,21 +50,22 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
 
     playerStateAction.onMessage = (data) => {
       if (!stateRef.current) return;
-      const myPlayer = stateRef.current.players[0];
-      if (data.color !== myPlayer.color) {
-        updateRemotePlayer(stateRef.current, data);
-      }
+      updateRemotePlayer(stateRef.current, data);
     };
 
     gameEventAction.onMessage = (data) => {
       if (!stateRef.current) return;
       if (data.type === 'level-complete') {
         stateRef.current.levelComplete = true;
+        setIsComplete(true);
       } else if (data.type === 'restart') {
         if (!stateRef.current.restartRequested) {
           stateRef.current.restartRequested = true;
           stateRef.current.restartTime = stateRef.current.time;
+          setIsComplete(false);
         }
+      } else if (data.type === 'exit') {
+        onExit(); // Karşı taraf çıktıysa menüye dön
       }
     };
 
@@ -70,19 +73,16 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       if (setCurrentLevelIndex) {
         isRemoteLevelChange.current = true;
         setCurrentLevelIndex(index);
+        setIsComplete(false);
       }
     };
 
     return () => {
       room.leave();
       roomRef.current = null;
-      playerStateActionRef.current = null;
-      gameEventActionRef.current = null;
-      levelActionRef.current = null;
     };
-  }, [roomId, isEditing, setCurrentLevelIndex]);
+  }, [roomId, isEditing, setCurrentLevelIndex, onExit]);
 
-  // 🆕 Seviye değişimini ağa gönder
   useEffect(() => {
     if (isRemoteLevelChange.current) {
       isRemoteLevelChange.current = false;
@@ -103,7 +103,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     let lastTime = performance.now();
 
     const onKeyDown = e => {
-      if (isEditing) return;
+      if (isEditing || isComplete) return; // Bittiyse klavyeyi dinleme
       keysRef.current[e.code] = true;
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
     };
@@ -121,21 +121,25 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       if (!isEditing) {
         update(state, keysRef.current, dt);
 
+        // 🆕 Bitiş kontrolü
+        if (state.levelComplete && !isComplete) {
+          setIsComplete(true);
+        }
+
         if (state.restartRequested) {
           if (!hasPublishedRestart.current) {
             hasPublishedRestart.current = true;
-            if (gameEventActionRef.current) {
-              gameEventActionRef.current.send({ type: 'restart' });
-            }
+            if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
           }
 
           if (state.time - state.restartTime > 0.6) {
             stateRef.current = createState(levelData, characters);
             hasPublishedComplete.current = false;
             hasPublishedRestart.current = false; 
-            keysRef.current = {}; // Yeniden başlarken tuşları sıfırla
+            keysRef.current = {}; 
           }
-        } else {
+        } else if (!state.levelComplete) {
+          // Sadece oyun bitmediyse pozisyon yayınla
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
             playerStateActionRef.current.send({
@@ -163,6 +167,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       
       render(ctx, renderData, isEditing, drawStart, drawCurrent);
 
+      // 🚨 RESTART EKRANI
       if (!isEditing && state.restartRequested) {
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
@@ -187,7 +192,30 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId]);
+  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete]);
+
+  // 🆕 Buton İşlevleri
+  const handleNextLevel = () => {
+    const nextIndex = currentLevelIndex + 1;
+    if (nextIndex < LEVELS.length) {
+      if (levelActionRef.current) levelActionRef.current.send(nextIndex);
+      setCurrentLevelIndex(nextIndex);
+    } else {
+      handleExit(); // Son seviyeyse çık
+    }
+  };
+
+  const handleRestartLevel = () => {
+    if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
+    stateRef.current.restartRequested = true;
+    stateRef.current.restartTime = stateRef.current.time;
+    setIsComplete(false);
+  };
+
+  const handleExit = () => {
+    if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'exit' });
+    onExit();
+  };
 
   // Editör Fare Kontrolleri
   const getGridCoords = (e) => {
@@ -263,7 +291,32 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
           width: '100%', height: 'auto', touchAction: 'none'
         }} 
       />
+      
       {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} />}
+
+      {/* 🆕 OYUN BİTTİ EKRANI */}
+      {isComplete && !isEditing && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(10, 10, 20, 0.85)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', zIndex: 10, borderRadius: 8
+        }}>
+          <h1 style={{ color: '#4caf50', fontSize: 48, margin: 0, textShadow: '0 0 20px #4caf50' }}>TEBRİKLER!</h1>
+          <p style={{ color: '#fff', fontSize: 20, marginTop: 10, marginBottom: 30 }}>Seviyeyi başarıyla tamamladınız.</p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 15, width: 250 }}>
+            <button onClick={handleNextLevel} style={{ padding: 15, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+              ⏭ SONRAKİ SEVİYE
+            </button>
+            <button onClick={handleRestartLevel} style={{ padding: 15, background: '#f39c12', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+              🔄 YENİDEN OYNA
+            </button>
+            <button onClick={handleExit} style={{ padding: 15, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+              🚪 ANA MENÜ
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

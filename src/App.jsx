@@ -8,7 +8,6 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [characters, setCharacters] = useState({ p1: 'platformBlue', p2: 'platformPink' });
   const [roomId, setRoomId] = useState('');
-
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
@@ -17,11 +16,6 @@ export default function App() {
   useEffect(() => {
     setLevelData(LEVELS[currentLevelIndex]);
   }, [currentLevelIndex]);
-
-  const handleNextLevel = () => {
-    if (currentLevelIndex < LEVELS.length - 1) setCurrentLevelIndex(prev => prev + 1);
-    else alert("Tüm seviyeler tamamlandı! Tebrikler.");
-  };
 
   const startGame = (mobileMode) => {
     setIsMobile(mobileMode);
@@ -39,9 +33,7 @@ export default function App() {
         
         <div style={{ marginBottom: 30, textAlign: 'center' }}>
           <input 
-            type="text" 
-            placeholder="Oda Kodu (Örn: 1234)" 
-            value={roomId}
+            type="text" placeholder="Oda Kodu (Örn: 1234)" value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
             style={{ padding: 15, fontSize: 20, borderRadius: 8, border: '2px solid #3498db', background: '#1a1a2e', color: '#fff', textAlign: 'center', width: 250, outline: 'none' }}
           />
@@ -51,31 +43,15 @@ export default function App() {
         <div style={{ padding: 20, background: '#1a1a2e', borderRadius: 8, border: '1px solid #333', marginBottom: 30 }}>
           <h3 style={{ marginTop: 0, marginBottom: 15 }}>Karakterini Seç (Online)</h3>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button 
-              onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })}
-              style={{ padding: '15px 30px', background: characters.p1 === 'platformBlue' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}
-            >
-              Mavi (P1)
-            </button>
-            <button 
-              onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })}
-              style={{ padding: '15px 30px', background: characters.p1 === 'platformPink' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}
-            >
-              Pembe (P2)
-            </button>
+            <button onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformBlue' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Mavi (P1)</button>
+            <button onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformPink' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Pembe (P2)</button>
           </div>
-          <p style={{ fontSize: 12, color: '#888', marginTop: 15, maxWidth: 250 }}>
-            *Online oynarken birbirinizle aynı rengi SEÇMEYİN.
-          </p>
+          <p style={{ fontSize: 12, color: '#888', marginTop: 15, maxWidth: 250 }}>*Online oynarken birbirinizle aynı rengi SEÇMEYİN.</p>
         </div>
 
         <div style={{ display: 'flex', gap: 20 }}>
-          <button onClick={() => startGame(false)} style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-            💻 Bilgisayar
-          </button>
-          <button onClick={() => startGame(true)} style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-            📱 Mobil / Tablet
-          </button>
+          <button onClick={() => startGame(false)} style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>💻 Bilgisayar</button>
+          <button onClick={() => startGame(true)} style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📱 Mobil / Tablet</button>
         </div>
       </div>
     );
@@ -86,9 +62,7 @@ export default function App() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
         <h1 style={{ margin: 0, letterSpacing: 2, color: '#e84393', textShadow: '0 0 10px #e84393' }}>LOVE GAME</h1>
         
-        <div style={{ padding: '8px 15px', background: '#1a1a2e', borderRadius: 4, border: '1px solid #3498db', color: '#3498db', fontWeight: 'bold' }}>
-          Oda: {roomId}
-        </div>
+        <div style={{ padding: '8px 15px', background: '#1a1a2e', borderRadius: 4, border: '1px solid #3498db', color: '#3498db', fontWeight: 'bold' }}>Oda: {roomId}</div>
 
         <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4, fontWeight: 'bold' }}>
           {LEVELS.map((_, index) => <option key={index} value={index}>Seviye {index + 1}</option>)}
@@ -98,11 +72,7 @@ export default function App() {
           {isEditing ? '▶ OYNA' : '🛠 EDİTÖR'}
         </button>
 
-        {!isEditing && (
-          <button onClick={handleNextLevel} style={{ padding: '10px 20px', background: '#8e44ad', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
-            ⏭ SONRAKİ SEVİYE
-          </button>
-        )}
+        {/* Üstteki SONRAKİ SEVİYE butonu kaldırıldı */}
 
         <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>
           🏠 MENÜ
@@ -120,6 +90,7 @@ export default function App() {
           roomId={roomId} 
           currentLevelIndex={currentLevelIndex}
           setCurrentLevelIndex={setCurrentLevelIndex}
+          onExit={() => setScreen('menu')} // 🆕 Oyundan çıkış için
         />
         
         {isEditing && (
