@@ -11,6 +11,7 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
       { color: characters.p1, x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1 },
       { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1 }
     ],
+    platformChanged: null, // 🆕 Platform rengi değişince ağa haber vermek için
   };
 }
 
@@ -27,7 +28,6 @@ export function updateRemotePlayer(state, remoteData) {
   }
 }
 
-// 🆕 Çarpışma Kontrolü (AABB)
 function checkCollision(p, plat) {
   return (
     p.x < plat.x + plat.w &&
@@ -37,15 +37,19 @@ function checkCollision(p, plat) {
   );
 }
 
-// 🆕 Duvardan Geçiş İzni
-function canPassThrough(playerColor, plat) {
-  // Nötr duvar her zaman katıdır (geçilemez)
-  if (plat.color === 'platformNeutral') return false;
-  
-  // Renkli duvarlar, sadece kendi rengindeyse geçilebilir
-  if (playerColor === plat.color) return true;
-  
+// 🆕 Çarpışma Kontrolü (Düzeltildi: Nötr veya kendi rengiyse katıdır)
+function isSolid(playerColor, plat) {
+  if (plat.color === 'platformNeutral') return true;
+  if (plat.color === playerColor) return true;
   return false;
+}
+
+function handleColorChange(plat, p, state) {
+  if (plat.changeable && plat.color !== p.color) {
+    plat.color = p.color;
+    plat.flashUntil = state.time + 0.25;
+    state.platformChanged = { index: state.platforms.indexOf(plat), color: p.color }; // Ağa gönderilecek
+  }
 }
 
 export function update(state, keys, dt) {
@@ -69,10 +73,11 @@ export function update(state, keys, dt) {
 
   // X Ekseni Çarpışma (Sadece Duvarlar için)
   for (const plat of state.platforms) {
-    if (plat.isWall && checkCollision(p, plat) && !canPassThrough(p.color, plat)) {
-      if (p.vx > 0) p.x = plat.x - p.w; // Sağdan çarptı
-      else if (p.vx < 0) p.x = plat.x + plat.w; // Soldan çarptı
+    if (plat.isWall && isSolid(p.color, plat) && checkCollision(p, plat)) {
+      if (p.vx > 0) p.x = plat.x - p.w; 
+      else if (p.vx < 0) p.x = plat.x + plat.w; 
       p.vx = 0;
+      handleColorChange(plat, p, state);
     }
   }
 
@@ -87,35 +92,24 @@ export function update(state, keys, dt) {
   p.y += p.vy * dt;
   p.grounded = false;
 
-  // Y Ekseni Çarpışma (Zeminler ve Duvarlar için)
+  // Y Ekseni Çarpışma
   for (const plat of state.platforms) {
-    if (checkCollision(p, plat) && !canPassThrough(p.color, plat)) {
+    if (isSolid(p.color, plat) && checkCollision(p, plat)) {
       
-      // Eğer normal platform ise, sadece yukarıdan inerken üstüne bas
-      if (!plat.isWall) {
-        if (p.vy >= 0 && prevY + p.h <= plat.y + 5) {
-          p.y = plat.y - p.h;
-          p.vy = 0;
-          p.grounded = true;
-          if (plat.changeable && plat.color !== p.color) {
-            plat.color = p.color;
-            plat.flashUntil = state.time + 0.25;
-          }
+      if (plat.isWall) {
+        // Duvarlar her yönden katı
+        if (p.vy > 0 && prevY + p.h <= plat.y + 10) { 
+          p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
+          handleColorChange(plat, p, state);
+        } else if (p.vy < 0 && prevY >= plat.y + plat.h - 10) { 
+          p.y = plat.y + plat.h; p.vy = 0;
+          handleColorChange(plat, p, state);
         }
-      } 
-      // Eğer duvar ise, her yönden çarpabilir
-      else {
-        if (p.vy > 0) { // Aşağı düşerken
-          p.y = plat.y - p.h;
-          p.vy = 0;
-          p.grounded = true;
-          if (plat.changeable && plat.color !== p.color) {
-            plat.color = p.color;
-            plat.flashUntil = state.time + 0.25;
-          }
-        } else if (p.vy < 0) { // Yukarı zıplarken (tavana çarpma)
-          p.y = plat.y + plat.h;
-          p.vy = 0;
+      } else {
+        // Normal platformlar sadece yukarıdan inildiğinde katı
+        if (p.vy >= 0 && prevY + p.h <= plat.y + 5) {
+          p.y = plat.y - p.h; p.vy = 0; p.grounded = true;
+          handleColorChange(plat, p, state);
         }
       }
     }

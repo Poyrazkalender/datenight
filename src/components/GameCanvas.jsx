@@ -4,7 +4,7 @@ import { createState, update, updateRemotePlayer } from '../game/engineRestart';
 import { render } from '../game/renderer';
 import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
-import { LEVELS } from '../game/levels'; // 🆕 Level sayısına ulaşmak için
+import { LEVELS } from '../game/levels';
 
 export default function GameCanvas({ isEditing, selectedTool, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
   const canvasRef = useRef(null);
@@ -22,8 +22,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
 
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
-  
-  // 🆕 Oyun bitti mi ekranı için React State
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
@@ -31,7 +29,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
     keysRef.current = {}; 
-    setIsComplete(false); // Yeni seviyede menüyü kapat
+    setIsComplete(false);
   }, [levelData, characters]);
 
   useEffect(() => {
@@ -65,7 +63,10 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
           setIsComplete(false);
         }
       } else if (data.type === 'exit') {
-        onExit(); // Karşı taraf çıktıysa menüye dön
+        onExit();
+      } else if (data.type === 'platform-change') {
+        // 🆕 Karşı taraftan gelen renk değişimini uygula
+        stateRef.current.platforms[data.index].color = data.color;
       }
     };
 
@@ -93,7 +94,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     }
   }, [currentLevelIndex, roomId, isEditing]);
 
-  // Oyun Döngüsü
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -103,7 +103,7 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     let lastTime = performance.now();
 
     const onKeyDown = e => {
-      if (isEditing || isComplete) return; // Bittiyse klavyeyi dinleme
+      if (isEditing || isComplete) return;
       keysRef.current[e.code] = true;
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
     };
@@ -121,7 +121,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       if (!isEditing) {
         update(state, keysRef.current, dt);
 
-        // 🆕 Bitiş kontrolü
         if (state.levelComplete && !isComplete) {
           setIsComplete(true);
         }
@@ -139,7 +138,12 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
             keysRef.current = {}; 
           }
         } else if (!state.levelComplete) {
-          // Sadece oyun bitmediyse pozisyon yayınla
+          // 🆕 Platform değiştiyse ağa gönder
+          if (gameEventActionRef.current && roomId && state.platformChanged) {
+            gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
+            state.platformChanged = null;
+          }
+
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
             playerStateActionRef.current.send({
@@ -167,7 +171,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       
       render(ctx, renderData, isEditing, drawStart, drawCurrent);
 
-      // 🚨 RESTART EKRANI
       if (!isEditing && state.restartRequested) {
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
@@ -194,14 +197,13 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     };
   }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete]);
 
-  // 🆕 Buton İşlevleri
   const handleNextLevel = () => {
     const nextIndex = currentLevelIndex + 1;
     if (nextIndex < LEVELS.length) {
       if (levelActionRef.current) levelActionRef.current.send(nextIndex);
       setCurrentLevelIndex(nextIndex);
     } else {
-      handleExit(); // Son seviyeyse çık
+      handleExit();
     }
   };
 
@@ -217,7 +219,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     onExit();
   };
 
-  // Editör Fare Kontrolleri
   const getGridCoords = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
@@ -256,38 +257,24 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
     setDrawCurrent(getGridCoords(e));
   };
 
-  // Sadece mouseUp kısmını güncelliyoruz, diğer her şey aynı kalacak.
   const onMouseUp = () => {
     if (!isEditing || !drawStart || !drawCurrent) return;
-    
     const x = Math.min(drawStart.x, drawCurrent.x);
     const y = Math.min(drawStart.y, drawCurrent.y);
     const w = Math.max(20, Math.abs(drawCurrent.x - drawStart.x));
     const h = Math.max(20, Math.abs(drawCurrent.y - drawStart.y));
-
     const newPlatform = { x, y, w, h, brackets: true };
     
-    // 🆕 Yeni Araç Mantığı
     if (selectedTool === 'changeable') {
-      newPlatform.color = 'platformNeutral';
-      newPlatform.changeable = true;
-      newPlatform.isWall = false;
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = false;
     } else if (selectedTool === 'wallChangeable') {
-      newPlatform.color = 'platformNeutral';
-      newPlatform.changeable = true;
-      newPlatform.isWall = true; // Duvar!
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = true; newPlatform.isWall = true;
     } else if (selectedTool === 'platformNeutral') {
-      newPlatform.color = 'platformNeutral';
-      newPlatform.changeable = false;
-      newPlatform.isWall = false;
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = false;
     } else if (selectedTool === 'wallNeutral') {
-      newPlatform.color = 'platformNeutral';
-      newPlatform.changeable = false;
-      newPlatform.isWall = true; // Sabit Nötr Duvar!
+      newPlatform.color = 'platformNeutral'; newPlatform.changeable = false; newPlatform.isWall = true;
     } else if (selectedTool === 'platformBlue' || selectedTool === 'platformPink') {
-      newPlatform.color = selectedTool;
-      newPlatform.changeable = false;
-      newPlatform.isWall = false;
+      newPlatform.color = selectedTool; newPlatform.changeable = false; newPlatform.isWall = false;
     }
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
@@ -315,7 +302,6 @@ export default function GameCanvas({ isEditing, selectedTool, levelData, onLevel
       
       {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} />}
 
-      {/* 🆕 OYUN BİTTİ EKRANI */}
       {isComplete && !isEditing && (
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
