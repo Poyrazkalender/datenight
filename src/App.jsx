@@ -43,10 +43,33 @@ export default function App() {
     navigator.clipboard.writeText(json);
   };
 
-  // ... MENÜ EKRANI (Aynı) ...
-  if (screen === 'menu') { /* ... */ }
+  if (screen === 'menu') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff' }}>
+        <h1 style={{ fontSize: 48, color: '#e84393', textShadow: '0 0 20px #e84393', marginBottom: 20 }}>LOVE GAME</h1>
+        
+        <div style={{ marginBottom: 30, textAlign: 'center' }}>
+          <input type="text" placeholder="Oda Kodu" value={roomId} onChange={(e) => setRoomId(e.target.value)} style={{ padding: 15, fontSize: 20, borderRadius: 8, border: '2px solid #3498db', background: '#1a1a2e', color: '#fff', textAlign: 'center', width: 250, outline: 'none' }} />
+          <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Arkadaşınla aynı kodu girerek aynı odada buluşun.</p>
+        </div>
 
-  // ... EDİTÖR EKRANI ...
+        <div style={{ padding: 20, background: '#1a1a2e', borderRadius: 8, border: '1px solid #333', marginBottom: 30 }}>
+          <h3 style={{ marginTop: 0, marginBottom: 15 }}>Karakterini Seç (Online)</h3>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformBlue' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Mavi (P1)</button>
+            <button onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformPink' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Pembe (P2)</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
+          <button onClick={() => startGame(false)} style={{ padding: '20px 40px', fontSize: 24, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>💻 Bilgisayar</button>
+          <button onClick={() => startGame(true)} style={{ padding: '20px 40px', fontSize: 24, background: '#e84393', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>📱 Mobil / Tablet</button>
+        </div>
+        <button onClick={() => setScreen('editor')} style={{ padding: '15px 30px', fontSize: 18, background: '#f1c40f', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>🛠 LEVEL EDİTÖRÜ</button>
+      </div>
+    );
+  }
+
   if (screen === 'editor') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
@@ -75,9 +98,7 @@ export default function App() {
     );
   }
 
-  // ... OYUN EKRANI ...
   return (
-    // Oyun ekranı aynı, sadece GameCanvas'a giden levelData vs. aynı kalacak
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', color: '#fff', paddingTop: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
         <h1 style={{ margin: 0, letterSpacing: 2, color: '#e84393', textShadow: '0 0 10px #e84393' }}>LOVE GAME</h1>
