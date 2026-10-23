@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function LevelEditor({ selectedTool, setSelectedTool, customColor, setCustomColor, levelData, setLevelData }) {
+export default function LevelEditor({ selectedTool, setSelectedTool, customColor, setCustomColor, levelData, setLevelData, onAddNewLevel, onExportJSON }) {
   const [copied, setCopied] = useState(false);
 
   const tools = [
@@ -16,18 +16,28 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
     { id: 'delete', label: 'Sil', color: '#ff0000' },
   ];
 
+  // 🆕 Resim Yükleme
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLevelData({ ...levelData, backgroundImage: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleExport = () => {
-    const json = JSON.stringify({ platforms: levelData.platforms, blueSpawn: levelData.blueSpawn, pinkSpawn: levelData.pinkSpawn }, null, 2);
-    navigator.clipboard.writeText(json);
+    onExportJSON(); // App.jsx'teki fonksiyonu çağır
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div style={{ width: 250, background: '#1a1a2e', padding: 20, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ width: 280, background: '#1a1a2e', padding: 20, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <h3 style={{ margin: 0, color: '#fff', fontSize: 16 }}>Araçlar</h3>
       
-      {/* 🆕 Renk Seçici Artık Prop Kullanıyor */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#2a2a40', padding: 10, borderRadius: 4 }}>
         <span style={{ fontSize: 12, color: '#fff' }}>Özel Renk:</span>
         <input type="color" value={customColor} onChange={(e) => setCustomColor(e.target.value)} style={{ cursor: 'pointer', border: 'none', background: 'none' }} />
@@ -35,8 +45,7 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
         {tools.map(t => (
-          <button
-            key={t.id} onClick={() => setSelectedTool(t.id)}
+          <button key={t.id} onClick={() => setSelectedTool(t.id)}
             style={{ padding: '8px 4px', fontSize: 11, cursor: 'pointer', background: selectedTool === t.id ? t.color : '#2a2a40', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}
           >
             {t.label}
@@ -46,9 +55,23 @@ export default function LevelEditor({ selectedTool, setSelectedTool, customColor
 
       <hr style={{ borderColor: '#333', width: '100%', margin: '10px 0' }} />
 
-      <button onClick={() => setLevelData({ platforms: [], blueSpawn: { x: 100, y: 400 }, pinkSpawn: { x: 150, y: 400 } })} style={{ padding: 10, background: '#c0392b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Sahneyi Temizle</button>
+      {/* 🆕 Arka Plan Resmi Yükleme */}
+      <div style={{ background: '#2a2a40', padding: 10, borderRadius: 4 }}>
+        <span style={{ fontSize: 12, color: '#fff', display: 'block', marginBottom: 5 }}>Arka Plan Resmi:</span>
+        <input type="file" accept="image/*" onChange={handleImageUpload} style={{ fontSize: 11, color: '#ccc' }} />
+        {levelData.backgroundImage && (
+          <button onClick={() => setLevelData({ ...levelData, backgroundImage: null })} style={{ marginTop: 5, fontSize: 11, background: '#e74c3c', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>Resmi Kaldır</button>
+        )}
+      </div>
+
+      <button onClick={() => setLevelData({ platforms: [], blueSpawn: { x: 100, y: 400 }, pinkSpawn: { x: 150, y: 400 }, backgroundImage: null })} style={{ padding: 10, background: '#c0392b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Sahneyi Temizle</button>
 
       <button onClick={handleExport} style={{ padding: 10, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>{copied ? '✅ Kopyalandı!' : '📋 JSON Kopyala'}</button>
+      
+      {/* 🆕 Yeni Seviye Ekle */}
+      <button onClick={onAddNewLevel} style={{ padding: 10, background: '#8e44ad', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', marginTop: 10 }}>
+        ➕ Yeni Seviye Olarak Kaydet
+      </button>
     </div>
   );
 }

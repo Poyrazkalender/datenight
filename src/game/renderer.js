@@ -3,16 +3,20 @@ import { COLORS, WIDTH, HEIGHT } from './constants';
 const blueImg = new Image(); blueImg.src = '/assets/player-blue.png';
 const pinkImg = new Image(); pinkImg.src = '/assets/player-pink.png';
 
-function roundRect(ctx, x, y, w, h, r) { /* Aynı kalacak */ 
+// 🆕 Arka plan resmini tutmak için
+const bgImg = new Image();
+
+function roundRect(ctx, x, y, w, h, r) { 
   if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
   ctx.beginPath(); ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
   ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x + w - r, y + h);
   ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
   ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
 
-function drawBrickWall(ctx) { /* Aynı kalacak */ 
+function drawBrickWall(ctx) { 
   ctx.fillStyle = COLORS.bgDark; ctx.fillRect(0, 0, WIDTH, HEIGHT);
   const bw = 80, bh = 30;
   ctx.fillStyle = COLORS.brickLight; ctx.strokeStyle = COLORS.bgDark; ctx.lineWidth = 4;
@@ -26,6 +30,23 @@ function drawBrickWall(ctx) { /* Aynı kalacak */
   }
   ctx.lineWidth = 16; ctx.strokeStyle = '#8c5b37'; ctx.strokeRect(0, 0, WIDTH, HEIGHT);
   ctx.lineWidth = 4; ctx.strokeStyle = '#c8955b'; ctx.strokeRect(8, 8, WIDTH - 16, HEIGHT - 16);
+}
+
+// 🆕 Arka plan çizici güncellendi
+function drawBackground(ctx, state) {
+  if (state.backgroundImage) {
+    if (bgImg.src !== state.backgroundImage) {
+      bgImg.src = state.backgroundImage;
+    }
+    if (bgImg.complete) {
+      ctx.drawImage(bgImg, 0, 0, WIDTH, HEIGHT);
+      // Resmin üstüne hafif bir karartma ekleyelim ki platformlar okunsun
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+  } else {
+    drawBrickWall(ctx);
+  }
 }
 
 function drawPlatforms(ctx, state) { 
@@ -60,7 +81,7 @@ function drawPlatforms(ctx, state) {
   }
 }
 
-function drawGoal(ctx, state) { /* Aynı kalacak */ 
+function drawGoal(ctx, state) { 
   const goal = state.platforms.find(p => p.isGoal);
   if (!goal) return;
   const pulse = 0.5 + 0.5 * Math.sin(state.time * 4);
@@ -109,7 +130,7 @@ function drawPlayers(ctx, state) {
   }
 }
 
-function drawEditorOverlays(ctx, state, drawStart, drawCurrent) { /* Aynı kalacak */ 
+function drawEditorOverlays(ctx, state, drawStart, drawCurrent) { 
   ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
   for (let x = 0; x < WIDTH; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, HEIGHT); ctx.stroke(); }
   for (let y = 0; y < HEIGHT; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WIDTH, y); ctx.stroke(); }
@@ -132,7 +153,7 @@ function drawEditorOverlays(ctx, state, drawStart, drawCurrent) { /* Aynı kalac
 }
 
 export function render(ctx, state, isEditing, drawStart, drawCurrent) {
-  drawBrickWall(ctx);
+  drawBackground(ctx, state); // 🆕 Güncellendi
   drawPlatforms(ctx, state);
   drawGoal(ctx, state);
   if (!isEditing) drawPlayers(ctx, state); 
