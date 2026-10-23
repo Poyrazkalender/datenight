@@ -21,7 +21,6 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
   const levelActionRef = useRef(null);
   const syncActionRef = useRef(null); 
 
-  // 🆕 EKSİK OLAN STATE TANIMLAMALARI BURAYA EKLENDİ
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
@@ -50,10 +49,10 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
     levelActionRef.current = levelAction;
     syncActionRef.current = syncAction;
 
-    room.onPeerJoin((peerId) => {
-      console.log('Yeni oyuncu katıldı, durum isteniyor...', peerId);
-      syncAction.send({ type: 'request' }); 
-    });
+    // 🆕 HATA ÇÖZÜMÜ: onPeerJoin yerine gecikmeli istek atıyoruz
+    const syncInterval = setInterval(() => {
+      if (syncAction) syncAction.send({ type: 'request' });
+    }, 1500);
 
     syncAction.onMessage = (data) => {
       if (data.type === 'request') {
@@ -99,6 +98,7 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
     };
 
     return () => {
+      clearInterval(syncInterval); // 🆕 Temizlik
       room.leave();
       roomRef.current = null;
     };

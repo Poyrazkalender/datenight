@@ -12,13 +12,14 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [customColor, setCustomColor] = useState('#ff5733');
   
-  // 🆕 Seviyeler dinamik hale getirildi
   const [levelsList, setLevelsList] = useState(INITIAL_LEVELS);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
+  
+  // 🆕 Test Modu State'i
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
-    // Seviye indeksi değiştiğinde veya yeni seviye eklendiğinde veriyi güncelle
     if (levelsList[currentLevelIndex]) {
       setLevelData(levelsList[currentLevelIndex]);
     }
@@ -33,7 +34,6 @@ export default function App() {
     setScreen('game');
   };
 
-  // 🆕 Yeni Seviye Ekleme
   const handleAddNewLevel = () => {
     const newLevels = [...levelsList, JSON.parse(JSON.stringify(levelData))]; 
     setLevelsList(newLevels);
@@ -41,7 +41,6 @@ export default function App() {
     alert("Seviye listeye eklendi! Kalıcı yapmak için JSON'u kopyalayıp src/game/levels.js dosyasına yapıştırın.");
   };
 
-  // 🆕 JSON Dışa Aktarma
   const handleExportJSON = () => {
     const json = JSON.stringify({ platforms: levelData.platforms, blueSpawn: levelData.blueSpawn, pinkSpawn: levelData.pinkSpawn, backgroundImage: levelData.backgroundImage || null }, null, 2);
     navigator.clipboard.writeText(json);
@@ -84,21 +83,36 @@ export default function App() {
           <select value={currentLevelIndex} onChange={(e) => setCurrentLevelIndex(Number(e.target.value))} style={{ padding: '8px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: 4, fontWeight: 'bold' }}>
             {levelsList.map((_, index) => <option key={index} value={index}>Seviye {index + 1}</option>)}
           </select>
-          <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 ANA MENÜ</button>
+          
+          {/* 🆕 TEST ET BUTONU */}
+          <button 
+            onClick={() => setIsTesting(!isTesting)} 
+            style={{ padding: '10px 20px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
+          </button>
+
+          <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 ANA MENÜ</button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+          {/* Test modundaysa isEditing false olur ve oyun oynanır */}
           <GameCanvas 
-            isEditing={true} selectedTool={selectedTool} customColor={customColor}
+            isEditing={!isTesting} 
+            selectedTool={selectedTool} customColor={customColor}
             levelData={levelData} onLevelChange={setLevelData} isMobile={false} characters={characters} 
-            roomId={null} currentLevelIndex={0} setCurrentLevelIndex={() => {}} onExit={() => setScreen('menu')} 
+            roomId={null} currentLevelIndex={0} setCurrentLevelIndex={() => {}} onExit={() => setIsTesting(false)} 
           />
-          <LevelEditor 
-            selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
-            customColor={customColor} setCustomColor={setCustomColor} 
-            levelData={levelData} setLevelData={setLevelData} 
-            onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
-          />
+          
+          {/* Test modundaysa editör panelini gizle */}
+          {!isTesting && (
+            <LevelEditor 
+              selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
+              customColor={customColor} setCustomColor={setCustomColor} 
+              levelData={levelData} setLevelData={setLevelData} 
+              onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
+            />
+          )}
         </div>
       </div>
     );
