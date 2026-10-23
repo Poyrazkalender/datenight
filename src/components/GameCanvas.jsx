@@ -49,7 +49,6 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
     levelActionRef.current = levelAction;
     syncActionRef.current = syncAction;
 
-    // 🆕 HATA ÇÖZÜMÜ: onPeerJoin yerine gecikmeli istek atıyoruz
     const syncInterval = setInterval(() => {
       if (syncAction) syncAction.send({ type: 'request' });
     }, 1500);
@@ -86,6 +85,7 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
         onExit();
       } else if (data.type === 'platform-change') {
         stateRef.current.platforms[data.index].color = data.color;
+        stateRef.current.platforms[data.index].customColor = null; // Karşı tarafta da özel rengi sıfırla
       }
     };
 
@@ -98,7 +98,7 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
     };
 
     return () => {
-      clearInterval(syncInterval); // 🆕 Temizlik
+      clearInterval(syncInterval); 
       room.leave();
       roomRef.current = null;
     };
@@ -329,7 +329,10 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(10, 10, 20, 0.85)', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', zIndex: 10, borderRadius: 8
+          alignItems: 'center', justifyContent: 'center', 
+          zIndex: 999, // 🆕 En önde görünmesi için
+          pointerEvents: 'auto', // 🆕 Tıklanabilir olması için
+          borderRadius: 8
         }}>
           <h1 style={{ color: '#4caf50', fontSize: 48, margin: 0, textShadow: '0 0 20px #4caf50' }}>TEBRİKLER!</h1>
           <p style={{ color: '#fff', fontSize: 20, marginTop: 10, marginBottom: 30 }}>Seviyeyi başarıyla tamamladınız.</p>

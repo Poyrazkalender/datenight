@@ -9,7 +9,7 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
     pinkSpawn: { ...levelData.pinkSpawn },
     players: [
       { color: characters.p1, x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1, isConnected: true },
-      { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1, isConnected: false } // 🆕 Başlangıçta bağlı değil
+      { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1, isConnected: false }
     ],
     platformChanged: null,
   };
@@ -18,7 +18,7 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
 export function updateRemotePlayer(state, remoteData) {
   const remotePlayer = state.players[1]; 
   if (remotePlayer) {
-    remotePlayer.isConnected = true; // 🆕 Veri geldiğinde bağlı yap
+    remotePlayer.isConnected = true;
     remotePlayer.x += (remoteData.x - remotePlayer.x) * 0.5;
     remotePlayer.y += (remoteData.y - remotePlayer.y) * 0.5;
     remotePlayer.vx = remoteData.vx;
@@ -45,6 +45,7 @@ function isSolid(playerColor, plat) {
 function handleColorChange(plat, p, state) {
   if (plat.changeable && plat.color !== p.color) {
     plat.color = p.color;
+    plat.customColor = null; // 🆕 Özel rengi sıfırla ki oyuncunun rengi görünsün
     plat.flashUntil = state.time + 0.25;
     state.platformChanged = { index: state.platforms.indexOf(plat), color: p.color };
   }
@@ -116,8 +117,11 @@ export function update(state, keys, dt) {
 
   const goal = state.platforms.find(p => p.isGoal);
   if (goal) {
+    // 🆕 Her iki oyuncunun da hedefte olması gerekiyor
     const bothOnGoal = state.players.every(p => 
-      p.grounded && Math.abs((p.y + p.h) - goal.y) < 5 && p.x + p.w > goal.x && p.x < goal.x + goal.w
+      p.grounded && 
+      Math.abs((p.y + p.h) - goal.y) < 5 && 
+      p.x + p.w > goal.x && p.x < goal.x + goal.w
     );
     if (bothOnGoal) state.levelComplete = true;
   }
