@@ -19,7 +19,12 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
   const playerStateActionRef = useRef(null);
   const gameEventActionRef = useRef(null);
   const levelActionRef = useRef(null);
-  const syncActionRef = useRef(null); // 🆕
+  const syncActionRef = useRef(null); 
+
+  // 🆕 EKSİK OLAN STATE TANIMLAMALARI BURAYA EKLENDİ
+  const [drawStart, setDrawStart] = useState(null);
+  const [drawCurrent, setDrawCurrent] = useState(null);
+  const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
     stateRef.current = createState(levelData, characters);
@@ -38,28 +43,24 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, level
     const playerStateAction = room.makeAction('player-state');
     const gameEventAction = room.makeAction('game-event');
     const levelAction = room.makeAction('change-level'); 
-    const syncAction = room.makeAction('sync-state'); // 🆕 State Senkronizasyon Action'ı
+    const syncAction = room.makeAction('sync-state'); 
 
     playerStateActionRef.current = playerStateAction;
     gameEventActionRef.current = gameEventAction;
     levelActionRef.current = levelAction;
     syncActionRef.current = syncAction;
 
-    // 🆕 Yeni bir oyuncu odaya girdiğinde mevcut durumu iste
     room.onPeerJoin((peerId) => {
       console.log('Yeni oyuncu katıldı, durum isteniyor...', peerId);
       syncAction.send({ type: 'request' }); 
     });
 
-    // 🆕 Karşı taraftan gelen durum isteklerini ve verilerini yönet
     syncAction.onMessage = (data) => {
       if (data.type === 'request') {
-        // Biri bizden durum istiyor, mevcut platformları gönder
         if (stateRef.current) {
           syncAction.send({ type: 'response', platforms: stateRef.current.platforms });
         }
       } else if (data.type === 'response') {
-        // Karşı taraftan güncel durum geldi, kendi state'imize uygula
         if (data.platforms && stateRef.current) {
           stateRef.current.platforms = data.platforms;
         }
