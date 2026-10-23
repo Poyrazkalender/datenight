@@ -3,16 +3,13 @@ import GameCanvas from './components/GameCanvas';
 import LevelEditor from './components/LevelEditor';
 import { LEVELS as INITIAL_LEVELS } from './game/levels';
 
+// 🆕 Editör için sabit karakterler (Her render'da referansı değişmez, sahne sıfırlanmaz)
+const FIXED_CHARACTERS = { p1: 'platformBlue', p2: 'platformPink' };
+
 export default function App() {
   const [screen, setScreen] = useState('menu'); 
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? (window.innerWidth <= 1024 || navigator.maxTouchPoints > 0) : false);
   
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth <= 1024 || navigator.maxTouchPoints > 0;
-    }
-    return false;
-  });
-
   const [characters, setCharacters] = useState({ p1: 'platformBlue', p2: 'platformPink' });
   const [roomId, setRoomId] = useState('');
   
@@ -24,20 +21,16 @@ export default function App() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
   const [isTesting, setIsTesting] = useState(false);
-  const [testPlayer, setTestPlayer] = useState('P1'); // Test edilecek oyuncu
+  const [testPlayer, setTestPlayer] = useState('P1'); 
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 1024 || navigator.maxTouchPoints > 0);
-    };
+    const handleResize = () => setIsMobile(window.innerWidth <= 1024 || navigator.maxTouchPoints > 0);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
-    if (levelsList[currentLevelIndex]) {
-      setLevelData(levelsList[currentLevelIndex]);
-    }
+    if (levelsList[currentLevelIndex]) setLevelData(levelsList[currentLevelIndex]);
   }, [currentLevelIndex, levelsList]);
 
   const startGame = (mobileMode) => {
@@ -100,8 +93,8 @@ export default function App() {
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
           
-          {/* Test Modunda Karakter Seçimi */}
-          {isTesting && isMobile && (
+          {/* 🆕 Test Modunda Karakter Seçimi (Artık Bilgisayarda da Görünüyor) */}
+          {isTesting && (
             <div style={{ display: 'flex', gap: 5 }}>
               <button onClick={() => setTestPlayer('P1')} style={{ padding: '10px 15px', background: testPlayer === 'P1' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>Mavi (P1)</button>
               <button onClick={() => setTestPlayer('P2')} style={{ padding: '10px 15px', background: testPlayer === 'P2' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>Pembe (P2)</button>
@@ -122,8 +115,8 @@ export default function App() {
             levelData={levelData} 
             onLevelChange={setLevelData} 
             isMobile={isMobile} 
-            // Editörde karakterler sabit, ana menü seçimi karışmaz.
-            characters={{ p1: 'platformBlue', p2: 'platformPink' }} 
+            // 🆕 Sabit karakter objesi gönderildi (Sahnenin sıfırlanmasını engeller)
+            characters={FIXED_CHARACTERS} 
             roomId={null} 
             currentLevelIndex={0} 
             setCurrentLevelIndex={() => {}} 
