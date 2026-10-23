@@ -1,7 +1,8 @@
 import { GRAVITY, WIDTH, HEIGHT } from './constants';
 import { LEVELS } from './levels';
 
-export function createState(levelData = LEVELS[0], characters = { p1: 'platformBlue', p2: 'platformPink' }) {
+// 🆕 forceP2Active parametresi eklendi
+export function createState(levelData = LEVELS[0], characters = { p1: 'platformBlue', p2: 'platformPink' }, forceP2Active = false) {
   return {
     time: 0, levelComplete: false, completedAt: 0, restartRequested: false, restartTime: 0,
     platforms: levelData.platforms.map(p => ({ ...p })),
@@ -9,10 +10,10 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
     pinkSpawn: { ...levelData.pinkSpawn },
     players: [
       { color: characters.p1, x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1, isConnected: true },
-      { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'None', right: 'None', jump: 'None' }, landedAt: -1, isConnected: false }
+      { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp' }, landedAt: -1, isConnected: forceP2Active }
     ],
     platformChanged: null,
-    buttonStateChanged: null, // 🆕 Buton durumu değişince ağa bildirmek için
+    buttonStateChanged: null,
   };
 }
 

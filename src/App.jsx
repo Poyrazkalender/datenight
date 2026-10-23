@@ -6,7 +6,6 @@ import { LEVELS as INITIAL_LEVELS } from './game/levels';
 export default function App() {
   const [screen, setScreen] = useState('menu'); 
   
-  // 🆕 OTOMATİK MOBİL ALGILAMA
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth <= 1024 || navigator.maxTouchPoints > 0;
@@ -25,8 +24,8 @@ export default function App() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [levelData, setLevelData] = useState(INITIAL_LEVELS[0]);
   const [isTesting, setIsTesting] = useState(false);
+  const [testPlayer, setTestPlayer] = useState('P1'); // 🆕 Test edilecek oyuncu
 
-  // 🆕 Ekran boyutu değiştiğinde mobil durumunu güncelle
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 1024 || navigator.maxTouchPoints > 0);
@@ -100,18 +99,29 @@ export default function App() {
           <button onClick={() => setIsTesting(!isTesting)} style={{ padding: '10px 15px', background: isTesting ? '#e67e22' : '#27ae60', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
+          
+          {/* 🆕 TEST EDİLECEK KARAKTER SEÇİMİ (Sadece Test Modunda Görünür) */}
+          {isTesting && isMobile && (
+            <div style={{ display: 'flex', gap: 5 }}>
+              <button onClick={() => setTestPlayer('P1')} style={{ padding: '10px 15px', background: testPlayer === 'P1' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>Mavi (P1)</button>
+              <button onClick={() => setTestPlayer('P2')} style={{ padding: '10px 15px', background: testPlayer === 'P2' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>Pembe (P2)</button>
+            </div>
+          )}
+
           <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 15px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>🏠 MENÜ</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: 20, width: '100%', padding: '0 10px' }}>
           <GameCanvas 
             isEditing={!isTesting} 
+            isTesting={isTesting} // 🆕 Test modu GameCanvas'a iletiliyor
+            controlledPlayer={testPlayer} // 🆕 Seçilen oyuncu iletiliyor
             selectedTool={selectedTool} 
             customColor={customColor} 
             customSprite={customSprite}
             levelData={levelData} 
             onLevelChange={setLevelData} 
-            isMobile={isMobile} // 🆕 Otomatik algılanan değer gönderiliyor
+            isMobile={isMobile} 
             characters={characters} 
             roomId={null} 
             currentLevelIndex={0} 

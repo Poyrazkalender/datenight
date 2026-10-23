@@ -6,7 +6,22 @@ import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
 import { LEVELS } from '../game/levels';
 
-export default function GameCanvas({ isEditing, selectedTool, customColor, customSprite, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
+export default function GameCanvas({ 
+  isEditing, 
+  isTesting, 
+  controlledPlayer = 'P1', 
+  selectedTool, 
+  customColor, 
+  customSprite, 
+  levelData, 
+  onLevelChange, 
+  isMobile, 
+  characters, 
+  roomId, 
+  currentLevelIndex, 
+  setCurrentLevelIndex, 
+  onExit 
+}) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
@@ -26,12 +41,13 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    stateRef.current = createState(levelData, characters);
+    // 🆕 isTesting true ise P2'yi zorla aktif et
+    stateRef.current = createState(levelData, characters, isTesting);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
     keysRef.current = {}; 
     setIsComplete(false);
-  }, [levelData, characters]);
+  }, [levelData, characters, isTesting]);
 
   useEffect(() => {
     if (!roomId || isEditing) return;
@@ -148,7 +164,7 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
           }
 
           if (state.time - state.restartTime > 0.6) {
-            stateRef.current = createState(levelData, characters);
+            stateRef.current = createState(levelData, characters, isTesting);
             hasPublishedComplete.current = false;
             hasPublishedRestart.current = false; 
             keysRef.current = {}; 
@@ -210,7 +226,7 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete]);
+  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete, isTesting]);
 
   const handleNextLevel = () => {
     const nextIndex = currentLevelIndex + 1;
@@ -316,6 +332,11 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
     keysRef.current[key] = isPressed;
   };
 
+  // 🆕 Mobilde kontrol edilecek karakterin tuş setini belirle
+  const activeControls = controlledPlayer === 'P2' 
+    ? { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp' } 
+    : { left: 'KeyA', right: 'KeyD', jump: 'KeyW' };
+
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: WIDTH, display: 'flex', justifyContent: 'center' }}>
       <canvas 
@@ -336,8 +357,8 @@ export default function GameCanvas({ isEditing, selectedTool, customColor, custo
         }} 
       />
       
-      {/* 🆕 Test veya Oyun modunda mobilde joystick görünür */}
-      {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} />}
+      {/* 🆕 Test veya Oyun modunda mobilde joystick görünür ve doğru tuşları gönderir */}
+      {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} keys={activeControls} />}
 
       {isComplete && !isEditing && (
         <div style={{
