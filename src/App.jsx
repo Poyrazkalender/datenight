@@ -15,6 +15,7 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [customColor, setCustomColor] = useState('#ff5733');
   const [customSprite, setCustomSprite] = useState(null);
+  const [customSpriteTouched, setCustomSpriteTouched] = useState(null); // 🆕 EKLENDİ
   
   const [levelsList, setLevelsList] = useState(INITIAL_LEVELS);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
@@ -63,7 +64,6 @@ export default function App() {
           <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Arkadaşınla aynı kodu girerek aynı odada buluşun.</p>
         </div>
 
-        {/* 🆕 KARAKTER SEÇİMİ GÖRSELLİ */}
         <div style={{ padding: 20, background: '#1a1a2e', borderRadius: 8, border: '1px solid #333', marginBottom: 30 }}>
           <h3 style={{ marginTop: 0, marginBottom: 15, textAlign: 'center' }}>Karakterini Seç</h3>
           <div style={{ display: 'flex', gap: 20 }}>
@@ -128,6 +128,7 @@ export default function App() {
             selectedTool={selectedTool} 
             customColor={customColor} 
             customSprite={customSprite}
+            customSpriteTouched={customSpriteTouched} // 🆕 EKLENDİ
             levelData={levelData} 
             onLevelChange={setLevelData} 
             isMobile={isMobile} 
@@ -143,6 +144,7 @@ export default function App() {
                 selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
                 customColor={customColor} setCustomColor={setCustomColor} 
                 customSprite={customSprite} setCustomSprite={setCustomSprite}
+                customSpriteTouched={customSpriteTouched} setCustomSpriteTouched={setCustomSpriteTouched} // 🆕 EKLENDİ
                 levelData={levelData} setLevelData={setLevelData} 
                 onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
               />
@@ -163,7 +165,7 @@ export default function App() {
 
       <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'center' }}>
         <GameCanvas 
-          isEditing={false} selectedTool={selectedTool} customColor={customColor} customSprite={customSprite}
+          isEditing={false} selectedTool={selectedTool} customColor={customColor} customSprite={customSprite} customSpriteTouched={customSpriteTouched}
           levelData={levelData} onLevelChange={setLevelData} isMobile={isMobile} characters={characters} 
           roomId={roomId} currentLevelIndex={currentLevelIndex} setCurrentLevelIndex={setCurrentLevelIndex} onExit={() => setScreen('menu')} 
         />

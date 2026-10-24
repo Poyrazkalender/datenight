@@ -6,7 +6,7 @@ import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
 import { LEVELS } from '../game/levels';
 
-export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P1', selectedTool, customColor, customSprite, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
+export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P1', selectedTool, customColor, customSprite, customSpriteTouched, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
@@ -15,7 +15,6 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
   const hasPublishedRestart = useRef(false); 
   const isRemoteLevelChange = useRef(false);
 
-  // Odaya giriş zamanı (Kim önce girdiyse onun rengi kilitlenir)
   const joinTime = useRef(Date.now());
   const hasResolvedColor = useRef(false); 
 
@@ -76,12 +75,9 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
         }
       }
 
-      // RENK ÇAKIŞMASI ÇÖZÜMÜ (Sessiz ve Tek Seferlik)
       if (data.myColor && !hasResolvedColor.current) {
         if (data.myColor === localCharacters.p1) {
-          // Eğer aynı rengi seçtiysek, kim önce girdiyse onun rengi kalsın
           if (data.joinTime && joinTime.current > data.joinTime) {
-            // Biz sonradan girdiysek, rengimizi değiştir
             const newColor = localCharacters.p1 === 'platformBlue' ? 'platformPink' : 'platformBlue';
             setLocalCharacters({ p1: newColor, p2: data.myColor });
             hasResolvedColor.current = true;
@@ -111,6 +107,10 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       } else if (data.type === 'platform-change') {
         stateRef.current.platforms[data.index].color = data.color;
         stateRef.current.platforms[data.index].customColor = null;
+      } else if (data.type === 'button-state-change') { // 🆕 P2P Buton Senkronizasyonu
+        if (data.platforms) {
+          stateRef.current.platforms = data.platforms;
+        }
       }
     };
 
@@ -187,6 +187,12 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
           if (gameEventActionRef.current && roomId && state.platformChanged) {
             gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
             state.platformChanged = null;
+          }
+
+          // 🆕 Butona basılma / Remote / Timer platform değişikliklerini karşı tarafa ilet
+          if (gameEventActionRef.current && roomId && state.buttonStateChanged) {
+            gameEventActionRef.current.send({ type: 'button-state-change', platforms: state.platforms });
+            state.buttonStateChanged = null;
           }
 
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
@@ -335,6 +341,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       newPlatform.customColor = customColor; 
     }
     if (customSprite) newPlatform.sprite = customSprite;
+    if (customSpriteTouched) newPlatform.spriteTouched = customSpriteTouched; // 🆕 EKLENDİ
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);
