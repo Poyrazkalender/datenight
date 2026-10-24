@@ -6,23 +6,7 @@ import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
 import { LEVELS } from '../game/levels';
 
-export default function GameCanvas({ 
-  isEditing, 
-  isTesting, 
-  controlledPlayer = 'P1', 
-  selectedTool, 
-  customColor, 
-  customSprite, 
-  customSpriteTouched, // 🆕 Dokunulunca gösterilecek sprite
-  levelData, 
-  onLevelChange, 
-  isMobile, 
-  characters, 
-  roomId, 
-  currentLevelIndex, 
-  setCurrentLevelIndex, 
-  onExit 
-}) {
+export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P1', selectedTool, customColor, customSprite, levelData, onLevelChange, isMobile, characters, roomId, currentLevelIndex, setCurrentLevelIndex, onExit }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const keysRef = useRef({});
@@ -37,17 +21,25 @@ export default function GameCanvas({
   const levelActionRef = useRef(null);
   const syncActionRef = useRef(null); 
 
+  // 🆕 Karakter çakışmasını önlemek için yerel karakter state'i
+  const [localCharacters, setLocalCharacters] = useState(characters);
+
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
 
+  // Karakter prop'u değişirse yerel state'i güncelle
   useEffect(() => {
-    stateRef.current = createState(levelData, characters, isTesting);
+    setLocalCharacters(characters);
+  }, [characters]);
+
+  useEffect(() => {
+    stateRef.current = createState(levelData, localCharacters, isTesting);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
     keysRef.current = {}; 
     setIsComplete(false);
-  }, [levelData, characters, isTesting]);
+  }, [levelData, localCharacters, isTesting]);
 
   useEffect(() => {
     if (!roomId || isEditing) return;
@@ -66,14 +58,38 @@ export default function GameCanvas({
     syncActionRef.current = syncAction;
 
     const syncInterval = setInterval(() => {
-      if (syncAction) syncAction.send({ type: 'request' });
+      if (syncAction) {
+        // 🆕 Durum istenirken kendi rengimizi de gönderiyoruz
+        syncAction.send({ type: 'request', myColor: localCharacters.p1 });
+      }
     }, 1500);
 
     syncAction.onMessage = (data) => {
       if (data.type === 'request') {
-        if (stateRef.current) syncAction.send({ type: 'response', platforms: stateRef.current.platforms });
+        if (stateRef.current) {
+          // Gelen isteğe cevap verirken kendi rengimizi de yolluyoruz
+          syncAction.send({ type: 'response', platforms: stateRef.current.platforms, myColor: localCharacters.p1 });
+        }
       } else if (data.type === 'response') {
-        if (data.platforms && stateRef.current) stateRef.current.platforms = data.platforms;
+        if (data.platforms && stateRef.current) {
+          stateRef.current.platforms = data.platforms;
+        }
+      }
+
+      // 🆕 RENK ÇAKIŞMA KONTROLÜ
+      if (data.myColor) {
+        // Eğer rakibin rengi bizimkiyle aynıysa
+        if (data.myColor === localCharacters.p1) {
+          const newColor = data.myColor === 'platformBlue' ? 'platformPink' : 'platformBlue';
+          const newChars = { p1: newColor, p2: data.myColor };
+          setLocalCharacters(newChars);
+          
+          // Sadece 1 kez uyarı versin diye kontrol (arka planda sürekli alert atmasın)
+          if (!window.hasShownColorWarning) {
+            alert(`Rakibiniz sizinle aynı rengi (${data.myColor === 'platformBlue' ? 'Mavi' : 'Pembe'}) seçmiş! Renginiz otomatik olarak değiştirildi.`);
+            window.hasShownColorWarning = true;
+          }
+        }
       }
     };
 
@@ -113,8 +129,9 @@ export default function GameCanvas({
       clearInterval(syncInterval); 
       room.leave();
       roomRef.current = null;
+      window.hasShownColorWarning = false; // Çıkışta uyarıyı sıfırla
     };
-  }, [roomId, isEditing, setCurrentLevelIndex, onExit]);
+  }, [roomId, isEditing, setCurrentLevelIndex, onExit, localCharacters]);
 
   useEffect(() => {
     if (isRemoteLevelChange.current) {
@@ -164,7 +181,7 @@ export default function GameCanvas({
           }
 
           if (state.time - state.restartTime > 0.6) {
-            stateRef.current = createState(levelData, characters, isTesting);
+            stateRef.current = createState(levelData, localCharacters, isTesting);
             hasPublishedComplete.current = false;
             hasPublishedRestart.current = false; 
             keysRef.current = {}; 
@@ -177,17 +194,15 @@ export default function GameCanvas({
 
           if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
             const myPlayer = state.players[0];
-            if (myPlayer) {
-              playerStateActionRef.current.send({
-                color: myPlayer.color,
-                x: myPlayer.x,
-                y: myPlayer.y,
-                vx: myPlayer.vx,
-                vy: myPlayer.vy,
-                facing: myPlayer.facing,
-                grounded: myPlayer.grounded,
-              });
-            }
+            playerStateActionRef.current.send({
+              color: myPlayer.color,
+              x: myPlayer.x,
+              y: myPlayer.y,
+              vx: myPlayer.vx,
+              vy: myPlayer.vy,
+              facing: myPlayer.facing,
+              grounded: myPlayer.grounded,
+            });
             lastPublishedTime.current = time;
           }
 
@@ -228,7 +243,7 @@ export default function GameCanvas({
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, characters, roomId, isComplete, controlledPlayer, isTesting]);
+  }, [isEditing, levelData, drawStart, drawCurrent, localCharacters, roomId, isComplete, controlledPlayer, isTesting]);
 
   const handleNextLevel = () => {
     const nextIndex = currentLevelIndex + 1;
@@ -242,10 +257,8 @@ export default function GameCanvas({
 
   const handleRestartLevel = () => {
     if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
-    if (stateRef.current) {
-      stateRef.current.restartRequested = true;
-      stateRef.current.restartTime = stateRef.current.time;
-    }
+    stateRef.current.restartRequested = true;
+    stateRef.current.restartTime = stateRef.current.time;
     setIsComplete(false);
   };
 
@@ -325,15 +338,7 @@ export default function GameCanvas({
     if (newPlatform.color === 'platformNeutral') {
       newPlatform.customColor = customColor; 
     }
-
-    // 🆕 Uzaktan kumandalı platformlar için varsayılan rengi ata
-    if (newPlatform.isRemote) {
-      newPlatform.defaultColor = customColor;
-      newPlatform.customColor = customColor;
-    }
-
     if (customSprite) newPlatform.sprite = customSprite;
-    if (customSpriteTouched) newPlatform.spriteTouched = customSpriteTouched; // 🆕 Dokunulunca görünmesini sağlayacak sprite
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);
@@ -351,21 +356,10 @@ export default function GameCanvas({
   return (
     <div style={{ position: 'relative', width: '100%', maxWidth: WIDTH, display: 'flex', justifyContent: 'center' }}>
       <canvas 
-        ref={canvasRef} 
-        width={WIDTH} 
-        height={HEIGHT} 
-        onMouseDown={onPointerDown}
-        onMouseMove={onPointerMove}
-        onMouseUp={onPointerUp}
-        onMouseLeave={onPointerUp}
-        onTouchStart={onPointerDown}
-        onTouchMove={onPointerMove}
-        onTouchEnd={onPointerUp}
-        style={{ 
-          border: '4px solid #111', borderRadius: 8, boxShadow: '0 0 30px rgba(0,0,0,0.8)',
-          imageRendering: 'pixelated', cursor: isEditing ? 'crosshair' : 'default',
-          width: '100%', height: 'auto', touchAction: 'none'
-        }} 
+        ref={canvasRef} width={WIDTH} height={HEIGHT} 
+        onMouseDown={onPointerDown} onMouseMove={onPointerMove} onMouseUp={onPointerUp} onMouseLeave={onPointerUp}
+        onTouchStart={onPointerDown} onTouchMove={onPointerMove} onTouchEnd={onPointerUp}
+        style={{ border: '4px solid #111', borderRadius: 8, boxShadow: '0 0 30px rgba(0,0,0,0.8)', imageRendering: 'pixelated', cursor: isEditing ? 'crosshair' : 'default', width: '100%', height: 'auto', touchAction: 'none' }} 
       />
       
       {!isEditing && isMobile && <TouchControls onKeyChange={handleTouchKey} keys={activeControls} />}

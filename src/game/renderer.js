@@ -156,13 +156,13 @@ function drawEditorOverlays(ctx, state, drawStart, drawCurrent) {
   for (let x = 0; x < WIDTH; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, HEIGHT); ctx.stroke(); }
   for (let y = 0; y < HEIGHT; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WIDTH, y); ctx.stroke(); }
   if (state.blueSpawn) {
-    if (blueImg.complete && blueImg.naturalHeight !== 0) ctx.drawImage(blueImg, state.blueSpawn.x, state.blueSpawn.y, 24, 24);
-    else { ctx.fillStyle = COLORS.platformBlue; ctx.fillRect(state.blueSpawn.x, state.blueSpawn.y, 24, 24); }
+    if (blueImg.complete && blueImg.naturalHeight !== 0) ctx.drawImage(blueImg, state.blueSpawn.x, state.blueSpawn.y, 40, 40);
+    else { ctx.fillStyle = COLORS.platformBlue; ctx.fillRect(state.blueSpawn.x, state.blueSpawn.y, 40, 40); }
     ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.fillText('P1', state.blueSpawn.x + 4, state.blueSpawn.y - 4);
   }
   if (state.pinkSpawn) {
-    if (pinkImg.complete && pinkImg.naturalHeight !== 0) ctx.drawImage(pinkImg, state.pinkSpawn.x, state.pinkSpawn.y, 24, 24);
-    else { ctx.fillStyle = COLORS.platformPink; ctx.fillRect(state.pinkSpawn.x, state.pinkSpawn.y, 24, 24); }
+    if (pinkImg.complete && pinkImg.naturalHeight !== 0) ctx.drawImage(pinkImg, state.pinkSpawn.x, state.pinkSpawn.y, 40, 40);
+    else { ctx.fillStyle = COLORS.platformPink; ctx.fillRect(state.pinkSpawn.x, state.pinkSpawn.y, 40, 40); }
     ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.fillText('P2', state.pinkSpawn.x + 4, state.pinkSpawn.y - 4);
   }
   if (drawStart && drawCurrent) {

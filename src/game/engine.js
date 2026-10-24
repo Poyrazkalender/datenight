@@ -13,13 +13,13 @@ export function createState(levelData = LEVELS[0]) {
     players: [
       { 
         color: 'platformBlue', 
-        x: levelData.blueSpawn.x, y: levelData.blueSpawn.y, w: 24, h: 24, vx: 0, vy: 0, 
+        x: levelData.blueSpawn.x, y: levelData.blueSpawn.y, w: 40, h: 40, vx: 0, vy: 0, 
         speed: 260, jumpSpeed: 720, grounded: false, 
         controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1 
       },
       { 
         color: 'platformPink', 
-        x: levelData.pinkSpawn.x, y: levelData.pinkSpawn.y, w: 24, h: 24, vx: 0, vy: 0, 
+        x: levelData.pinkSpawn.x, y: levelData.pinkSpawn.y, w: 40, h: 40, vx: 0, vy: 0, 
         speed: 260, jumpSpeed: 720, grounded: false, 
         controls: { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp' }, landedAt: -1 
       }
