@@ -15,20 +15,22 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
   const hasPublishedRestart = useRef(false); 
   const isRemoteLevelChange = useRef(false);
 
+  // Odaya giriş zamanı (Kim önce girdiyse onun rengi kilitlenir)
+  const joinTime = useRef(Date.now());
+  const hasResolvedColor = useRef(false); 
+
+  const [localCharacters, setLocalCharacters] = useState(characters);
+
   const roomRef = useRef(null);
   const playerStateActionRef = useRef(null);
   const gameEventActionRef = useRef(null);
   const levelActionRef = useRef(null);
   const syncActionRef = useRef(null); 
 
-  // 🆕 Karakter çakışmasını önlemek için yerel karakter state'i
-  const [localCharacters, setLocalCharacters] = useState(characters);
-
   const [drawStart, setDrawStart] = useState(null);
   const [drawCurrent, setDrawCurrent] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
 
-  // Karakter prop'u değişirse yerel state'i güncelle
   useEffect(() => {
     setLocalCharacters(characters);
   }, [characters]);
@@ -59,16 +61,14 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
 
     const syncInterval = setInterval(() => {
       if (syncAction) {
-        // 🆕 Durum istenirken kendi rengimizi de gönderiyoruz
-        syncAction.send({ type: 'request', myColor: localCharacters.p1 });
+        syncAction.send({ type: 'request', myColor: localCharacters.p1, joinTime: joinTime.current });
       }
     }, 1500);
 
     syncAction.onMessage = (data) => {
       if (data.type === 'request') {
         if (stateRef.current) {
-          // Gelen isteğe cevap verirken kendi rengimizi de yolluyoruz
-          syncAction.send({ type: 'response', platforms: stateRef.current.platforms, myColor: localCharacters.p1 });
+          syncAction.send({ type: 'response', platforms: stateRef.current.platforms, myColor: localCharacters.p1, joinTime: joinTime.current });
         }
       } else if (data.type === 'response') {
         if (data.platforms && stateRef.current) {
@@ -76,18 +76,15 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
         }
       }
 
-      // 🆕 RENK ÇAKIŞMA KONTROLÜ
-      if (data.myColor) {
-        // Eğer rakibin rengi bizimkiyle aynıysa
+      // RENK ÇAKIŞMASI ÇÖZÜMÜ (Sessiz ve Tek Seferlik)
+      if (data.myColor && !hasResolvedColor.current) {
         if (data.myColor === localCharacters.p1) {
-          const newColor = data.myColor === 'platformBlue' ? 'platformPink' : 'platformBlue';
-          const newChars = { p1: newColor, p2: data.myColor };
-          setLocalCharacters(newChars);
-          
-          // Sadece 1 kez uyarı versin diye kontrol (arka planda sürekli alert atmasın)
-          if (!window.hasShownColorWarning) {
-            alert(`Rakibiniz sizinle aynı rengi (${data.myColor === 'platformBlue' ? 'Mavi' : 'Pembe'}) seçmiş! Renginiz otomatik olarak değiştirildi.`);
-            window.hasShownColorWarning = true;
+          // Eğer aynı rengi seçtiysek, kim önce girdiyse onun rengi kalsın
+          if (data.joinTime && joinTime.current > data.joinTime) {
+            // Biz sonradan girdiysek, rengimizi değiştir
+            const newColor = localCharacters.p1 === 'platformBlue' ? 'platformPink' : 'platformBlue';
+            setLocalCharacters({ p1: newColor, p2: data.myColor });
+            hasResolvedColor.current = true;
           }
         }
       }
@@ -129,7 +126,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       clearInterval(syncInterval); 
       room.leave();
       roomRef.current = null;
-      window.hasShownColorWarning = false; // Çıkışta uyarıyı sıfırla
+      hasResolvedColor.current = false; 
     };
   }, [roomId, isEditing, setCurrentLevelIndex, onExit, localCharacters]);
 
@@ -223,7 +220,6 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
-        
         ctx.fillStyle = `rgba(255, 80, 80, ${progress})`;
         ctx.font = 'bold 36px monospace';
         ctx.textAlign = 'center';
@@ -369,9 +365,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(10, 10, 20, 0.85)', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', 
-          zIndex: 999, 
-          pointerEvents: 'auto', 
-          borderRadius: 8
+          zIndex: 999, pointerEvents: 'auto', borderRadius: 8
         }}>
           <h1 style={{ color: '#4caf50', fontSize: 48, margin: 0, textShadow: '0 0 20px #4caf50' }}>TEBRİKLER!</h1>
           <p style={{ color: '#fff', fontSize: 20, marginTop: 10, marginBottom: 30 }}>Seviyeyi başarıyla tamamladınız.</p>

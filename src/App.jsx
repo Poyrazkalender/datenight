@@ -3,7 +3,6 @@ import GameCanvas from './components/GameCanvas';
 import LevelEditor from './components/LevelEditor';
 import { LEVELS as INITIAL_LEVELS } from './game/levels';
 
-// 🆕 Editör için sabit karakterler (Her render'da referansı değişmez, sahne sıfırlanmaz)
 const FIXED_CHARACTERS = { p1: 'platformBlue', p2: 'platformPink' };
 
 export default function App() {
@@ -64,11 +63,29 @@ export default function App() {
           <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>Arkadaşınla aynı kodu girerek aynı odada buluşun.</p>
         </div>
 
+        {/* 🆕 KARAKTER SEÇİMİ GÖRSELLİ */}
         <div style={{ padding: 20, background: '#1a1a2e', borderRadius: 8, border: '1px solid #333', marginBottom: 30 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 15 }}>Karakterini Seç (Online)</h3>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformBlue' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Mavi (P1)</button>
-            <button onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })} style={{ padding: '15px 30px', background: characters.p1 === 'platformPink' ? '#e84393' : '#333', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Pembe (P2)</button>
+          <h3 style={{ marginTop: 0, marginBottom: 15, textAlign: 'center' }}>Karakterini Seç</h3>
+          <div style={{ display: 'flex', gap: 20 }}>
+            <button onClick={() => setCharacters({ p1: 'platformBlue', p2: 'platformPink' })} 
+              style={{ 
+                background: characters.p1 === 'platformBlue' ? '#00a7f8' : 'transparent', 
+                border: characters.p1 === 'platformBlue' ? '4px solid #fff' : '4px solid transparent', 
+                borderRadius: 8, cursor: 'pointer', padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center'
+              }}>
+              <img src="/assets/player-blue.png" alt="Mavi" style={{ width: 80, height: 80 }} />
+              <span style={{ color: '#fff', marginTop: 10, fontWeight: 'bold' }}>Mavi (P1)</span>
+            </button>
+            
+            <button onClick={() => setCharacters({ p1: 'platformPink', p2: 'platformBlue' })} 
+              style={{ 
+                background: characters.p1 === 'platformPink' ? '#e84393' : 'transparent', 
+                border: characters.p1 === 'platformPink' ? '4px solid #fff' : '4px solid transparent', 
+                borderRadius: 8, cursor: 'pointer', padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center'
+              }}>
+              <img src="/assets/player-pink.png" alt="Pembe" style={{ width: 80, height: 80 }} />
+              <span style={{ color: '#fff', marginTop: 10, fontWeight: 'bold' }}>Pembe (P2)</span>
+            </button>
           </div>
         </div>
 
@@ -93,7 +110,6 @@ export default function App() {
             {isTesting ? '✏️ DÜZENLE' : '▶ TEST ET'}
           </button>
           
-          {/* 🆕 Test Modunda Karakter Seçimi (Artık Bilgisayarda da Görünüyor) */}
           {isTesting && (
             <div style={{ display: 'flex', gap: 5 }}>
               <button onClick={() => setTestPlayer('P1')} style={{ padding: '10px 15px', background: testPlayer === 'P1' ? '#00a7f8' : '#333', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>Mavi (P1)</button>
@@ -115,7 +131,6 @@ export default function App() {
             levelData={levelData} 
             onLevelChange={setLevelData} 
             isMobile={isMobile} 
-            // 🆕 Sabit karakter objesi gönderildi (Sahnenin sıfırlanmasını engeller)
             characters={FIXED_CHARACTERS} 
             roomId={null} 
             currentLevelIndex={0} 
