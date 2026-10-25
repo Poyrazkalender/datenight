@@ -19,12 +19,18 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
   const hasResolvedColor = useRef(false); 
 
   const [localCharacters, setLocalCharacters] = useState(characters);
-  const localCharactersRef = useRef(localCharacters); // ✅ FIX: ref eklendi
+  const localCharactersRef = useRef(localCharacters);
 
-  // ✅ FIX: localCharactersRef'i state ile senkronize tut
-  useEffect(() => {
-    localCharactersRef.current = localCharacters;
-  }, [localCharacters]);
+  // ✅ FIX: Tüm loop deps'leri için ref
+  const levelDataRef = useRef(levelData);
+  const isTestingRef = useRef(isTesting);
+  const controlledPlayerRef = useRef(controlledPlayer);
+  const isCompleteRef = useRef(false);
+
+  useEffect(() => { localCharactersRef.current = localCharacters; }, [localCharacters]);
+  useEffect(() => { levelDataRef.current = levelData; }, [levelData]);
+  useEffect(() => { isTestingRef.current = isTesting; }, [isTesting]);
+  useEffect(() => { controlledPlayerRef.current = controlledPlayer; }, [controlledPlayer]);
 
   const roomRef = useRef(null);
   const playerStateActionRef = useRef(null);
@@ -36,11 +42,12 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
   const [drawCurrent, setDrawCurrent] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
 
+  useEffect(() => { isCompleteRef.current = isComplete; }, [isComplete]);
+
   useEffect(() => {
     setLocalCharacters(characters);
   }, [characters]);
 
-  // ✅ FIX: Editörde state yaratma (perf), ayrıca localCharactersRef kullan
   useEffect(() => {
     if (isEditing) return;
     stateRef.current = createState(levelData, localCharacters, isTesting);
@@ -50,12 +57,11 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
     setIsComplete(false);
   }, [levelData, localCharacters, isTesting, isEditing]);
 
-  // ✅ FIX: Component unmount olduğunda sprite cache temizle
   useEffect(() => {
     return () => clearImageCache();
   }, []);
 
-  // ✅ FIX: P2P effect dependency'si düzeltildi — onExit artık useCallback olduğu için stabil, localCharacters ref üzerinden okunuyor
+  // ✅ FIX: levelDataRef/isTestingRef kullan → closure stale sorunları giderildi
   useEffect(() => {
     if (!roomId || isEditing) return;
 
@@ -95,7 +101,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
             const newColor = localCharactersRef.current.p1 === 'platformBlue' ? 'platformPink' : 'platformBlue';
             setLocalCharacters({ p1: newColor, p2: data.myColor });
             hasResolvedColor.current = true;
-            clearInterval(syncInterval); // ✅ FIX: çözüm sonrası durdur
+            clearInterval(syncInterval);
           }
         }
       }
@@ -112,11 +118,19 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
         stateRef.current.levelComplete = true;
         setIsComplete(true);
       } else if (data.type === 'restart') {
+        // Karşı taraf düştü → DÜŞTÜNÜZ akışı
         if (!stateRef.current.restartRequested) {
           stateRef.current.restartRequested = true;
           stateRef.current.restartTime = stateRef.current.time;
           setIsComplete(false);
         }
+      } else if (data.type === 'manual-restart') {
+        // ✅ FIX: Karşı taraf manuel restart yaptı → anında sıfırla, DÜŞTÜNÜZ gösterme
+        stateRef.current = createState(levelDataRef.current, localCharactersRef.current, isTestingRef.current);
+        hasPublishedComplete.current = false;
+        hasPublishedRestart.current = false;
+        keysRef.current = {};
+        setIsComplete(false);
       } else if (data.type === 'exit') {
         onExit();
       } else if (data.type === 'platform-change') {
@@ -143,7 +157,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       roomRef.current = null;
       hasResolvedColor.current = false; 
     };
-  }, [roomId, isEditing, onExit]);
+  }, [roomId, isEditing, onExit, setCurrentLevelIndex]);
 
   useEffect(() => {
     if (isRemoteLevelChange.current) {
@@ -155,6 +169,8 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
     }
   }, [currentLevelIndex, roomId, isEditing]);
 
+  // ✅ FIX: Effect deps'ten isComplete/controlledPlayer/isTesting çıkarıldı (ref kullanıldı)
+  // Bu, win overlay açılıp kapandığında loop'un yeniden başlamasını engeller → yarım restart sorunu çözülür
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -164,7 +180,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
     let lastTime = performance.now();
 
     const onKeyDown = e => {
-      if (isEditing || isComplete) return;
+      if (isEditing || isCompleteRef.current) return;
       keysRef.current[e.code] = true;
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
     };
@@ -180,23 +196,26 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       const state = stateRef.current;
 
       if (!isEditing && state) {
-        update(state, keysRef.current, dt, controlledPlayer, isTesting);
+        update(state, keysRef.current, dt, controlledPlayerRef.current, isTestingRef.current);
 
-        if (state.levelComplete && !isComplete) {
+        // ✅ FIX: isCompleteRef kullan, sadece gerçekten geçişte tetikle
+        if (state.levelComplete && !isCompleteRef.current) {
           setIsComplete(true);
         }
 
         if (state.restartRequested) {
+          // Düşme akışı (sadece burada DÜŞTÜNÜZ gösterilir)
           if (!hasPublishedRestart.current) {
             hasPublishedRestart.current = true;
             if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
           }
 
           if (state.time - state.restartTime > 0.6) {
-            stateRef.current = createState(levelData, localCharactersRef.current, isTesting);
+            stateRef.current = createState(levelDataRef.current, localCharactersRef.current, isTestingRef.current);
             hasPublishedComplete.current = false;
             hasPublishedRestart.current = false; 
             keysRef.current = {}; 
+            // Not: Düşmede isComplete zaten false, ayrıca setIsComplete(false)'a gerek yok
           }
         } else {
           if (!state.levelComplete) {
@@ -225,7 +244,6 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
             }
           }
 
-          // ✅ FIX: Level-complete artık ULAŞILABİLİR — ayrı blok
           if (gameEventActionRef.current && roomId && state.levelComplete && !hasPublishedComplete.current) {
             gameEventActionRef.current.send({ type: 'level-complete' });
             hasPublishedComplete.current = true;
@@ -241,6 +259,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
         render(ctx, renderData, isEditing, drawStart, drawCurrent);
       }
 
+      // ✅ FIX: DÜŞTÜNÜZ overlay'i sadece restartRequested (fall) için
       if (!isEditing && state && state.restartRequested) {
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
@@ -264,9 +283,11 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, roomId, isComplete, controlledPlayer, isTesting]);
+  }, [isEditing, levelData, drawStart, drawCurrent, roomId]);
 
+  // ✅ FIX: Editör test modunda "sonraki seviye" anlamsız — no-op guard
   const handleNextLevel = () => {
+    if (!roomId) return;
     const nextIndex = currentLevelIndex + 1;
     if (nextIndex < LEVELS.length) {
       if (levelActionRef.current) levelActionRef.current.send(nextIndex);
@@ -276,11 +297,15 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
     }
   };
 
+  // ✅ FIX: Manuel restart — anında sıfırla, DÜŞTÜNÜZ gösterme
   const handleRestartLevel = () => {
-    if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
-    stateRef.current.restartRequested = true;
-    stateRef.current.restartTime = stateRef.current.time;
-    keysRef.current = {}; // ✅ FIX: restart'ta tuşları temizle
+    if (!stateRef.current) return;
+    if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'manual-restart' });
+    stateRef.current = createState(levelDataRef.current, localCharactersRef.current, isTestingRef.current);
+    hasPublishedComplete.current = false;
+    hasPublishedRestart.current = false;
+    lastPublishedTime.current = 0;
+    keysRef.current = {};
     setIsComplete(false);
   };
 
@@ -398,15 +423,29 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
           <p style={{ color: '#fff', fontSize: 20, marginTop: 10, marginBottom: 30 }}>Seviyeyi başarıyla tamamladınız.</p>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 15, width: 250 }}>
-            <button onClick={handleNextLevel} style={{ padding: 15, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
-              ⏭ SONRAKİ SEVİYE
-            </button>
-            <button onClick={handleRestartLevel} style={{ padding: 15, background: '#f39c12', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
-              🔄 YENİDEN OYNA
-            </button>
-            <button onClick={handleExit} style={{ padding: 15, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
-              🚪 ANA MENÜ
-            </button>
+            {/* ✅ FIX: Editör test modunda (roomId null) farklı butonlar */}
+            {roomId ? (
+              <>
+                <button onClick={handleNextLevel} style={{ padding: 15, background: '#27ae60', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+                  ⏭ SONRAKİ SEVİYE
+                </button>
+                <button onClick={handleRestartLevel} style={{ padding: 15, background: '#f39c12', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+                  🔄 YENİDEN OYNA
+                </button>
+                <button onClick={handleExit} style={{ padding: 15, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+                  🚪 ANA MENÜ
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={handleExit} style={{ padding: 15, background: '#3498db', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+                  ✏️ DÜZENLEMEYE DÖN
+                </button>
+                <button onClick={handleRestartLevel} style={{ padding: 15, background: '#f39c12', color: '#fff', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer' }}>
+                  🔄 YENİDEN TEST ET
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -201,21 +201,16 @@ export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = fal
     state.restartTime = state.time;
   }
 
-  // ✅ FIX: Goal kontrolü — cache + test modunda tek oyuncu
+    // ✅ FIX: Hem normal oyunda hem test modunda İKİ oyuncu da goal üstünde grounded olmalı
   const goal = state.goal;
   if (goal) {
-    if (isTesting) {
-      const activeP = state.players[activeIndex];
-      const onGoal = activeP.grounded &&
-        Math.abs((activeP.y + activeP.h) - goal.y) < 15 &&
-        activeP.x + activeP.w > goal.x && activeP.x < goal.x + goal.w;
-      if (onGoal) state.levelComplete = true;
-    } else {
-      const bothOnGoal = state.players.every(p =>
-        Math.abs((p.y + p.h) - goal.y) < 15 &&
-        p.x + p.w > goal.x && p.x < goal.x + goal.w
-      );
-      if (bothOnGoal) state.levelComplete = true;
-    }
+    const bothOnGoal = state.players.every(p =>
+      p.grounded &&
+      Math.abs((p.y + p.h) - goal.y) < 15 &&
+      p.x + p.w > goal.x && p.x < goal.x + goal.w
+    );
+    if (bothOnGoal) state.levelComplete = true;
   }
+ 
+  
 }
