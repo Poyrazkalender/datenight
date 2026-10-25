@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { WIDTH, HEIGHT } from '../game/constants';
 import { createState, update, updateRemotePlayer } from '../game/engineRestart';
-import { render } from '../game/renderer';
+import { render, clearImageCache } from '../game/renderer';
 import TouchControls from './TouchControls';
 import { joinRoom } from '@trystero-p2p/mqtt'; 
 import { LEVELS } from '../game/levels';
@@ -19,6 +19,12 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
   const hasResolvedColor = useRef(false); 
 
   const [localCharacters, setLocalCharacters] = useState(characters);
+  const localCharactersRef = useRef(localCharacters); // ✅ FIX: ref eklendi
+
+  // ✅ FIX: localCharactersRef'i state ile senkronize tut
+  useEffect(() => {
+    localCharactersRef.current = localCharacters;
+  }, [localCharacters]);
 
   const roomRef = useRef(null);
   const playerStateActionRef = useRef(null);
@@ -34,14 +40,22 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
     setLocalCharacters(characters);
   }, [characters]);
 
+  // ✅ FIX: Editörde state yaratma (perf), ayrıca localCharactersRef kullan
   useEffect(() => {
+    if (isEditing) return;
     stateRef.current = createState(levelData, localCharacters, isTesting);
     hasPublishedComplete.current = false;
     hasPublishedRestart.current = false;
     keysRef.current = {}; 
     setIsComplete(false);
-  }, [levelData, localCharacters, isTesting]);
+  }, [levelData, localCharacters, isTesting, isEditing]);
 
+  // ✅ FIX: Component unmount olduğunda sprite cache temizle
+  useEffect(() => {
+    return () => clearImageCache();
+  }, []);
+
+  // ✅ FIX: P2P effect dependency'si düzeltildi — onExit artık useCallback olduğu için stabil, localCharacters ref üzerinden okunuyor
   useEffect(() => {
     if (!roomId || isEditing) return;
 
@@ -60,14 +74,14 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
 
     const syncInterval = setInterval(() => {
       if (syncAction) {
-        syncAction.send({ type: 'request', myColor: localCharacters.p1, joinTime: joinTime.current });
+        syncAction.send({ type: 'request', myColor: localCharactersRef.current.p1, joinTime: joinTime.current });
       }
     }, 1500);
 
     syncAction.onMessage = (data) => {
       if (data.type === 'request') {
         if (stateRef.current) {
-          syncAction.send({ type: 'response', platforms: stateRef.current.platforms, myColor: localCharacters.p1, joinTime: joinTime.current });
+          syncAction.send({ type: 'response', platforms: stateRef.current.platforms, myColor: localCharactersRef.current.p1, joinTime: joinTime.current });
         }
       } else if (data.type === 'response') {
         if (data.platforms && stateRef.current) {
@@ -76,11 +90,12 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       }
 
       if (data.myColor && !hasResolvedColor.current) {
-        if (data.myColor === localCharacters.p1) {
+        if (data.myColor === localCharactersRef.current.p1) {
           if (data.joinTime && joinTime.current > data.joinTime) {
-            const newColor = localCharacters.p1 === 'platformBlue' ? 'platformPink' : 'platformBlue';
+            const newColor = localCharactersRef.current.p1 === 'platformBlue' ? 'platformPink' : 'platformBlue';
             setLocalCharacters({ p1: newColor, p2: data.myColor });
             hasResolvedColor.current = true;
+            clearInterval(syncInterval); // ✅ FIX: çözüm sonrası durdur
           }
         }
       }
@@ -107,7 +122,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       } else if (data.type === 'platform-change') {
         stateRef.current.platforms[data.index].color = data.color;
         stateRef.current.platforms[data.index].customColor = null;
-      } else if (data.type === 'button-state-change') { // 🆕 P2P Buton Senkronizasyonu
+      } else if (data.type === 'button-state-change') {
         if (data.platforms) {
           stateRef.current.platforms = data.platforms;
         }
@@ -128,7 +143,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       roomRef.current = null;
       hasResolvedColor.current = false; 
     };
-  }, [roomId, isEditing, setCurrentLevelIndex, onExit, localCharacters]);
+  }, [roomId, isEditing, onExit]);
 
   useEffect(() => {
     if (isRemoteLevelChange.current) {
@@ -164,7 +179,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       
       const state = stateRef.current;
 
-      if (!isEditing) {
+      if (!isEditing && state) {
         update(state, keysRef.current, dt, controlledPlayer, isTesting);
 
         if (state.levelComplete && !isComplete) {
@@ -178,37 +193,39 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
           }
 
           if (state.time - state.restartTime > 0.6) {
-            stateRef.current = createState(levelData, localCharacters, isTesting);
+            stateRef.current = createState(levelData, localCharactersRef.current, isTesting);
             hasPublishedComplete.current = false;
             hasPublishedRestart.current = false; 
             keysRef.current = {}; 
           }
-        } else if (!state.levelComplete) {
-          if (gameEventActionRef.current && roomId && state.platformChanged) {
-            gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
-            state.platformChanged = null;
+        } else {
+          if (!state.levelComplete) {
+            if (gameEventActionRef.current && roomId && state.platformChanged) {
+              gameEventActionRef.current.send({ type: 'platform-change', index: state.platformChanged.index, color: state.platformChanged.color });
+              state.platformChanged = null;
+            }
+
+            if (gameEventActionRef.current && roomId && state.buttonStateChanged) {
+              gameEventActionRef.current.send({ type: 'button-state-change', platforms: state.platforms });
+              state.buttonStateChanged = null;
+            }
+
+            if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
+              const myPlayer = state.players[0];
+              playerStateActionRef.current.send({
+                color: myPlayer.color,
+                x: myPlayer.x,
+                y: myPlayer.y,
+                vx: myPlayer.vx,
+                vy: myPlayer.vy,
+                facing: myPlayer.facing,
+                grounded: myPlayer.grounded,
+              });
+              lastPublishedTime.current = time;
+            }
           }
 
-          // 🆕 Butona basılma / Remote / Timer platform değişikliklerini karşı tarafa ilet
-          if (gameEventActionRef.current && roomId && state.buttonStateChanged) {
-            gameEventActionRef.current.send({ type: 'button-state-change', platforms: state.platforms });
-            state.buttonStateChanged = null;
-          }
-
-          if (playerStateActionRef.current && roomId && time - lastPublishedTime.current > 50) {
-            const myPlayer = state.players[0];
-            playerStateActionRef.current.send({
-              color: myPlayer.color,
-              x: myPlayer.x,
-              y: myPlayer.y,
-              vx: myPlayer.vx,
-              vy: myPlayer.vy,
-              facing: myPlayer.facing,
-              grounded: myPlayer.grounded,
-            });
-            lastPublishedTime.current = time;
-          }
-
+          // ✅ FIX: Level-complete artık ULAŞILABİLİR — ayrı blok
           if (gameEventActionRef.current && roomId && state.levelComplete && !hasPublishedComplete.current) {
             gameEventActionRef.current.send({ type: 'level-complete' });
             hasPublishedComplete.current = true;
@@ -220,9 +237,11 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
         ? { ...levelData, players: [], time: performance.now() / 1000, levelComplete: false } 
         : stateRef.current;
       
-      render(ctx, renderData, isEditing, drawStart, drawCurrent);
+      if (renderData) {
+        render(ctx, renderData, isEditing, drawStart, drawCurrent);
+      }
 
-      if (!isEditing && state.restartRequested) {
+      if (!isEditing && state && state.restartRequested) {
         const progress = Math.min(1, (state.time - state.restartTime) / 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${progress * 0.8})`;
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -245,7 +264,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [isEditing, levelData, drawStart, drawCurrent, localCharacters, roomId, isComplete, controlledPlayer, isTesting]);
+  }, [isEditing, levelData, drawStart, drawCurrent, roomId, isComplete, controlledPlayer, isTesting]);
 
   const handleNextLevel = () => {
     const nextIndex = currentLevelIndex + 1;
@@ -261,6 +280,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
     if (gameEventActionRef.current) gameEventActionRef.current.send({ type: 'restart' });
     stateRef.current.restartRequested = true;
     stateRef.current.restartTime = stateRef.current.time;
+    keysRef.current = {}; // ✅ FIX: restart'ta tuşları temizle
     setIsComplete(false);
   };
 
@@ -341,7 +361,7 @@ export default function GameCanvas({ isEditing, isTesting, controlledPlayer = 'P
       newPlatform.customColor = customColor; 
     }
     if (customSprite) newPlatform.sprite = customSprite;
-    if (customSpriteTouched) newPlatform.spriteTouched = customSpriteTouched; // 🆕 EKLENDİ
+    if (customSpriteTouched) newPlatform.spriteTouched = customSpriteTouched;
 
     onLevelChange({ ...levelData, platforms: [...levelData.platforms, newPlatform] });
     setDrawStart(null);

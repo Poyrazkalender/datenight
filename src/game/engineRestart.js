@@ -12,6 +12,8 @@ export function createState(levelData = LEVELS[0], characters = { p1: 'platformB
     })),
     blueSpawn: { ...levelData.blueSpawn },
     pinkSpawn: { ...levelData.pinkSpawn },
+    backgroundImage: levelData.backgroundImage || null, // ✅ FIX: arka plan resmi artık oyunda görünüyor
+    goal: levelData.platforms.find(p => p.isGoal) || null, // ✅ FIX: goal cache
     players: [
       { color: characters.p1, x: characters.p1 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p1 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 40, h: 40, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, landedAt: -1, isConnected: true },
       { color: characters.p2, x: characters.p2 === 'platformBlue' ? levelData.blueSpawn.x : levelData.pinkSpawn.x, y: characters.p2 === 'platformBlue' ? levelData.blueSpawn.y : levelData.pinkSpawn.y, w: 40, h: 40, vx: 0, vy: 0, speed: 260, jumpSpeed: 720, grounded: false, facing: 1, controls: { left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp' }, landedAt: -1, isConnected: forceP2Active }
@@ -111,7 +113,7 @@ export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = fal
       }
     }
   }
-  if (remoteChanged) state.buttonStateChanged = { type: 'remote' }; // 🆕 Değişiklik Flag'i Tetiklendi
+  if (remoteChanged) state.buttonStateChanged = { type: 'remote' };
 
   // TEST MODUNDA DİĞER OYUNCUYA YERÇEKİMİ
   if (isTesting) {
@@ -199,12 +201,21 @@ export function update(state, keys, dt, controlledPlayer = 'P1', isTesting = fal
     state.restartTime = state.time;
   }
 
-  const goal = state.platforms.find(p => p.isGoal);
+  // ✅ FIX: Goal kontrolü — cache + test modunda tek oyuncu
+  const goal = state.goal;
   if (goal) {
-    const bothOnGoal = state.players.every(p => 
-      Math.abs((p.y + p.h) - goal.y) < 15 && 
-      p.x + p.w > goal.x && p.x < goal.x + goal.w
-    );
-    if (bothOnGoal) state.levelComplete = true;
+    if (isTesting) {
+      const activeP = state.players[activeIndex];
+      const onGoal = activeP.grounded &&
+        Math.abs((activeP.y + activeP.h) - goal.y) < 15 &&
+        activeP.x + activeP.w > goal.x && activeP.x < goal.x + goal.w;
+      if (onGoal) state.levelComplete = true;
+    } else {
+      const bothOnGoal = state.players.every(p =>
+        Math.abs((p.y + p.h) - goal.y) < 15 &&
+        p.x + p.w > goal.x && p.x < goal.x + goal.w
+      );
+      if (bothOnGoal) state.levelComplete = true;
+    }
   }
 }

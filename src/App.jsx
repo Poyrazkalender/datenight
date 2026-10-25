@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
 import LevelEditor from './components/LevelEditor';
 import { LEVELS as INITIAL_LEVELS } from './game/levels';
@@ -15,7 +15,7 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState('changeable');
   const [customColor, setCustomColor] = useState('#ff5733');
   const [customSprite, setCustomSprite] = useState(null);
-  const [customSpriteTouched, setCustomSpriteTouched] = useState(null); // 🆕 EKLENDİ
+  const [customSpriteTouched, setCustomSpriteTouched] = useState(null);
   
   const [levelsList, setLevelsList] = useState(INITIAL_LEVELS);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
@@ -30,8 +30,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (levelsList[currentLevelIndex]) setLevelData(levelsList[currentLevelIndex]);
+    const current = levelsList[currentLevelIndex];
+    if (current) setLevelData(current);
   }, [currentLevelIndex, levelsList]);
+
+  // 🆕 Stabil callback'ler — P2P reconnect bug fix
+  const handleExitToMenu = useCallback(() => setScreen('menu'), []);
+  const handleEditorExit = useCallback(() => { setIsTesting(false); setScreen('menu'); }, []);
+  const handleTestExit = useCallback(() => setIsTesting(false), []);
+
+  // 🆕 Editörde yapılan değişiklikleri levelsList'e de yansıt (kalıcılık fix)
+  const handleLevelDataChange = useCallback((newData) => {
+    setLevelData(newData);
+    setLevelsList(prev => {
+      const next = [...prev];
+      next[currentLevelIndex] = newData;
+      return next;
+    });
+  }, [currentLevelIndex]);
 
   const startGame = (mobileMode) => {
     setIsMobile(mobileMode);
@@ -117,7 +133,7 @@ export default function App() {
             </div>
           )}
 
-          <button onClick={() => { setIsTesting(false); setScreen('menu'); }} style={{ padding: '10px 15px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>🏠 MENÜ</button>
+          <button onClick={handleEditorExit} style={{ padding: '10px 15px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold' }}>🏠 MENÜ</button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: 20, width: '100%', padding: '0 10px' }}>
@@ -128,15 +144,15 @@ export default function App() {
             selectedTool={selectedTool} 
             customColor={customColor} 
             customSprite={customSprite}
-            customSpriteTouched={customSpriteTouched} // 🆕 EKLENDİ
+            customSpriteTouched={customSpriteTouched}
             levelData={levelData} 
-            onLevelChange={setLevelData} 
+            onLevelChange={handleLevelDataChange}
             isMobile={isMobile} 
             characters={FIXED_CHARACTERS} 
             roomId={null} 
             currentLevelIndex={0} 
             setCurrentLevelIndex={() => {}} 
-            onExit={() => setIsTesting(false)} 
+            onExit={handleTestExit}
           />
           {!isTesting && (
             <div style={{ width: isMobile ? '100%' : 'auto', display: 'flex', justifyContent: 'center' }}>
@@ -144,8 +160,8 @@ export default function App() {
                 selectedTool={selectedTool} setSelectedTool={setSelectedTool} 
                 customColor={customColor} setCustomColor={setCustomColor} 
                 customSprite={customSprite} setCustomSprite={setCustomSprite}
-                customSpriteTouched={customSpriteTouched} setCustomSpriteTouched={setCustomSpriteTouched} // 🆕 EKLENDİ
-                levelData={levelData} setLevelData={setLevelData} 
+                customSpriteTouched={customSpriteTouched} setCustomSpriteTouched={setCustomSpriteTouched}
+                levelData={levelData} setLevelData={handleLevelDataChange}
                 onAddNewLevel={handleAddNewLevel} onExportJSON={handleExportJSON} 
               />
             </div>
@@ -160,14 +176,14 @@ export default function App() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
         <h1 style={{ margin: 0, letterSpacing: 2, color: '#e84393', textShadow: '0 0 10px #e84393' }}>LOVE GAME</h1>
         <div style={{ padding: '8px 15px', background: '#1a1a2e', borderRadius: 4, border: '1px solid #3498db', color: '#3498db', fontWeight: 'bold' }}>Oda: {roomId}</div>
-        <button onClick={() => setScreen('menu')} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 MENÜ</button>
+        <button onClick={handleExitToMenu} style={{ padding: '10px 20px', background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', cursor: 'pointer' }}>🏠 MENÜ</button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'center' }}>
         <GameCanvas 
           isEditing={false} selectedTool={selectedTool} customColor={customColor} customSprite={customSprite} customSpriteTouched={customSpriteTouched}
-          levelData={levelData} onLevelChange={setLevelData} isMobile={isMobile} characters={characters} 
-          roomId={roomId} currentLevelIndex={currentLevelIndex} setCurrentLevelIndex={setCurrentLevelIndex} onExit={() => setScreen('menu')} 
+          levelData={levelData} onLevelChange={handleLevelDataChange} isMobile={isMobile} characters={characters} 
+          roomId={roomId} currentLevelIndex={currentLevelIndex} setCurrentLevelIndex={setCurrentLevelIndex} onExit={handleExitToMenu} 
         />
       </div>
     </div>

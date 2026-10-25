@@ -4,20 +4,22 @@ const blueImg = new Image(); blueImg.src = '/assets/player-blue.png';
 const pinkImg = new Image(); pinkImg.src = '/assets/player-pink.png';
 const bgImg = new Image();
 
-
-// 🆕 Sprite önbelleği (performans için)
 const imageCache = {};
 
-function roundRect(ctx, x, y, w, h, r) { 
-  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
-  ctx.beginPath(); ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+// ✅ FIX: Cache temizleme API'si (GameCanvas unmount'ta çağırıyor)
+export function clearImageCache() {
+  Object.keys(imageCache).forEach(k => delete imageCache[k]);
 }
 
-function drawBrickWall(ctx) { 
+// ✅ FIX: Brick wall artık bir kez çizilip cache'leniyor
+let brickWallCanvas = null;
+function getBrickWallCanvas() {
+  if (brickWallCanvas) return brickWallCanvas;
+  const canvas = document.createElement('canvas');
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext('2d');
+
   ctx.fillStyle = COLORS.bgDark; ctx.fillRect(0, 0, WIDTH, HEIGHT);
   const bw = 80, bh = 30;
   ctx.fillStyle = COLORS.brickLight; ctx.strokeStyle = COLORS.bgDark; ctx.lineWidth = 4;
@@ -31,6 +33,30 @@ function drawBrickWall(ctx) {
   }
   ctx.lineWidth = 16; ctx.strokeStyle = '#8c5b37'; ctx.strokeRect(0, 0, WIDTH, HEIGHT);
   ctx.lineWidth = 4; ctx.strokeStyle = '#c8955b'; ctx.strokeRect(8, 8, WIDTH - 16, HEIGHT - 16);
+
+  brickWallCanvas = canvas;
+  return brickWallCanvas;
+}
+
+// ✅ FIX: Vignette artık cache'leniyor
+let vignetteCanvas = null;
+function getVignetteCanvas() {
+  if (vignetteCanvas) return vignetteCanvas;
+  const canvas = document.createElement('canvas');
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext('2d');
+  const vg = ctx.createRadialGradient(WIDTH/2, HEIGHT/2, HEIGHT*0.4, WIDTH/2, HEIGHT/2, HEIGHT*0.9);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  vignetteCanvas = canvas;
+  return vignetteCanvas;
+}
+
+function drawBrickWall(ctx) { 
+  ctx.drawImage(getBrickWallCanvas(), 0, 0);
 }
 
 function drawBackground(ctx, state) {
@@ -53,7 +79,6 @@ function drawPlatforms(ctx, state) {
     let color = plat.customColor || COLORS[plat.color] || plat.color;
     const isFlashing = plat.flashUntil && state.time < plat.flashUntil;
 
-    // 🆕 Buton Görünümü
     if (plat.isButtonBlue || plat.isButtonPink) {
       color = plat.isButtonBlue ? '#00a7f8' : '#e84393';
       ctx.save();
@@ -63,10 +88,9 @@ function drawPlatforms(ctx, state) {
       ctx.roundRect(plat.x, plat.y, plat.w, plat.h, 10);
       ctx.fill();
       ctx.restore();
-      continue; // Butonların üstüne başka şey çizme
+      continue;
     }
 
-    // 🆕 Zamanlayıcı Görünümü (Saat ikonu veya kenarlık)
     if (plat.isTimer) {
       ctx.save();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
@@ -74,8 +98,6 @@ function drawPlatforms(ctx, state) {
       ctx.restore();
     }
 
-    // drawPlatforms içindeki sprite çizim kısmını güncelle:
-    // 🆕 Dokunulduysa spriteTouched, değilse normal sprite kullan
     let activeSprite = (plat.isTouched && plat.spriteTouched) ? plat.spriteTouched : plat.sprite;
 
     if (activeSprite && !isFlashing) {
@@ -104,7 +126,8 @@ function drawPlatforms(ctx, state) {
 }
 
 function drawGoal(ctx, state) { 
-  const goal = state.platforms.find(p => p.isGoal);
+  // ✅ FIX: state.goal cache'i kullan, fallback ile
+  const goal = state.goal || state.platforms.find(p => p.isGoal);
   if (!goal) return;
   const pulse = 0.5 + 0.5 * Math.sin(state.time * 4);
   const cx = goal.x + goal.w / 2; const cy = goal.y + goal.h / 2;
@@ -179,7 +202,5 @@ export function render(ctx, state, isEditing, drawStart, drawCurrent) {
   drawGoal(ctx, state);
   if (!isEditing) drawPlayers(ctx, state); 
   if (isEditing) drawEditorOverlays(ctx, state, drawStart, drawCurrent);
-  const vg = ctx.createRadialGradient(WIDTH/2, HEIGHT/2, HEIGHT*0.4, WIDTH/2, HEIGHT/2, HEIGHT*0.9);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  ctx.drawImage(getVignetteCanvas(), 0, 0);
 }
