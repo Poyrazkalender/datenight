@@ -1,4 +1,4 @@
-import { COLORS, WIDTH, HEIGHT } from './constants';
+import { COLORS, WIDTH, HEIGHT } from './constants.js';
 
 const blueImg = new Image(); blueImg.src = '/assets/player-blue.png';
 const pinkImg = new Image(); pinkImg.src = '/assets/player-pink.png';
@@ -6,12 +6,10 @@ const bgImg = new Image();
 
 const imageCache = {};
 
-// ✅ FIX: Cache temizleme API'si (GameCanvas unmount'ta çağırıyor)
 export function clearImageCache() {
   Object.keys(imageCache).forEach(k => delete imageCache[k]);
 }
 
-// ✅ FIX: Brick wall artık bir kez çizilip cache'leniyor
 let brickWallCanvas = null;
 function getBrickWallCanvas() {
   if (brickWallCanvas) return brickWallCanvas;
@@ -38,7 +36,6 @@ function getBrickWallCanvas() {
   return brickWallCanvas;
 }
 
-// ✅ FIX: Vignette artık cache'leniyor
 let vignetteCanvas = null;
 function getVignetteCanvas() {
   if (vignetteCanvas) return vignetteCanvas;
@@ -55,11 +52,7 @@ function getVignetteCanvas() {
   return vignetteCanvas;
 }
 
-function drawBrickWall(ctx) { 
-  ctx.drawImage(getBrickWallCanvas(), 0, 0);
-}
-
-function drawBackground(ctx, state) {
+export function drawBackground(ctx, state) {
   if (state.backgroundImage) {
     if (bgImg.src !== state.backgroundImage) bgImg.src = state.backgroundImage;
     if (bgImg.complete) {
@@ -68,11 +61,11 @@ function drawBackground(ctx, state) {
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
     }
   } else {
-    drawBrickWall(ctx);
+    ctx.drawImage(getBrickWallCanvas(), 0, 0);
   }
 }
 
-function drawPlatforms(ctx, state) { 
+export function drawPlatforms(ctx, state) { 
   for (const plat of state.platforms) {
     if (plat.isGoal) continue;
     
@@ -125,8 +118,7 @@ function drawPlatforms(ctx, state) {
   }
 }
 
-function drawGoal(ctx, state) { 
-  // ✅ FIX: state.goal cache'i kullan, fallback ile
+export function drawGoal(ctx, state) { 
   const goal = state.goal || state.platforms.find(p => p.isGoal);
   if (!goal) return;
   const pulse = 0.5 + 0.5 * Math.sin(state.time * 4);
@@ -142,7 +134,7 @@ function drawGoal(ctx, state) {
   ctx.fillRect(goal.x + goal.w - 24, goal.y + goal.h, 4, 8);
 }
 
-function drawPlayers(ctx, state) {
+export function drawPlayers(ctx, state) {
   for (let i = 0; i < state.players.length; i++) {
     const p = state.players[i];
     
@@ -174,10 +166,14 @@ function drawPlayers(ctx, state) {
   }
 }
 
-function drawEditorOverlays(ctx, state, drawStart, drawCurrent) { 
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
-  for (let x = 0; x < WIDTH; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, HEIGHT); ctx.stroke(); }
-  for (let y = 0; y < HEIGHT; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WIDTH, y); ctx.stroke(); }
+export function drawEditorOverlays(ctx, state, drawStart, drawCurrent, showGrid = true) { 
+  // ✅ YENİ: Grid sadece showGrid true ise çizilsin
+  if (showGrid) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+    for (let x = 0; x < WIDTH; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, HEIGHT); ctx.stroke(); }
+    for (let y = 0; y < HEIGHT; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WIDTH, y); ctx.stroke(); }
+  }
+
   if (state.blueSpawn) {
     if (blueImg.complete && blueImg.naturalHeight !== 0) ctx.drawImage(blueImg, state.blueSpawn.x, state.blueSpawn.y, 40, 40);
     else { ctx.fillStyle = COLORS.platformBlue; ctx.fillRect(state.blueSpawn.x, state.blueSpawn.y, 40, 40); }
@@ -196,11 +192,20 @@ function drawEditorOverlays(ctx, state, drawStart, drawCurrent) {
   }
 }
 
-export function render(ctx, state, isEditing, drawStart, drawCurrent) {
+// ✅ OYUN İÇİN CONVENIENCE
+export function renderWorld(ctx, state) {
   drawBackground(ctx, state);
   drawPlatforms(ctx, state);
   drawGoal(ctx, state);
-  if (!isEditing) drawPlayers(ctx, state); 
-  if (isEditing) drawEditorOverlays(ctx, state, drawStart, drawCurrent);
+  drawPlayers(ctx, state);
+  ctx.drawImage(getVignetteCanvas(), 0, 0);
+}
+
+// ✅ YENİ: showGrid parametresi eklendi
+export function renderEditor(ctx, state, drawStart, drawCurrent, showGrid = true) {
+  drawBackground(ctx, state);
+  drawPlatforms(ctx, state);
+  drawGoal(ctx, state);
+  drawEditorOverlays(ctx, state, drawStart, drawCurrent, showGrid);
   ctx.drawImage(getVignetteCanvas(), 0, 0);
 }
